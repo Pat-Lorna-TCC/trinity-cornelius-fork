@@ -4,6 +4,8 @@
 
 Capture insights, discover connections, and synthesize knowledge - with AI assistance.
 
+> 🌱 **Ships pre-seeded.** This isn't an empty template - it comes with a working knowledge graph of **~1,000 interlinked notes** on decision-making, judgment, and cognitive science (distilled from published research and books, ~5,000 edges). Clone it and `/advise`, `/recall`, or `/find-connections` work immediately. Start at [`Brain/03-MOCs/MOC - Knowledge Base.md`](Brain/03-MOCs/MOC%20-%20Knowledge%20Base.md), then layer your own thinking on top. See [knowledge-base-analysis.md](knowledge-base-analysis.md) for what's inside.
+
 ## What's New in v05.26
 
 - **Incubation loop** - Autonomous iterative thinking engine; each run applies a rotating analytical move (ACH, Bayesian update, steelman, cross-domain bridge, implication check) and persists reasoning state across scheduled runs

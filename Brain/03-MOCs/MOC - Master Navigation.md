@@ -7,93 +7,48 @@ updated: 2025-01-01
 
 # MOC - Master Navigation
 
-**Welcome to your Second Brain.** Start here to navigate your knowledge graph.
+**Welcome.** This vault ships **pre-seeded** with ~1,000 interlinked notes on decision-making, judgment, and cognition - a working knowledge graph you can explore immediately, then grow with your own thinking.
 
-## 🗺️ Thematic MOCs
+## 🧭 Start here: the seeded knowledge base
 
-### Core Knowledge Domains
-- [[MOC - Knowledge Management]] - Sample topic MOC bundled with this template (10 notes)
-- [[MOC - Example Topic 2]] - Description (X notes)
-- [[MOC - Example Topic 3]] - Description (X notes)
+- [[MOC - Knowledge Base]] - **master index** of the seeded library (links to every thematic map below)
 
-> **To create a new MOC**: Wait until you have 15+ notes on a theme, then create a new MOC to organize them.
-> The bundled [[MOC - Knowledge Management]] is a worked example you can delete once you start your own.
+### Thematic Maps of Content
+- [[MOC - Decision-Making and Judgment Under Uncertainty]]
+- [[MOC - Cognitive Biases and Behavioral Economics]]
+- [[MOC - Risk, Antifragility and Complex Systems]]
+- [[MOC - Neuroscience of Cognition and Attention]]
+- [[MOC - Consciousness, Predictive Processing and Active Inference]]
+- [[MOC - Learning, Memory and Expertise]]
+- [[MOC - Motivation, Reward and Flow States]]
+- [[MOC - Social Cognition, Trust and Cooperation]]
+- [[MOC - Meaning, Wisdom and Human Flourishing]]
+- [[MOC - Embodied Cognition, Interoception and Contemplative Science]]
 
-## 📚 Recent Activity
+### How this system works (methodology)
+- [[MOC - Knowledge Management]] - a small worked example on Zettelkasten / PKM concepts
 
-### Latest Permanent Notes
-- [[The Zettelkasten Method]] (sample)
-- [[Atomic Notes Capture One Idea Each]] (sample)
-- [[Emergent Structure Beats Predefined Folders]] (sample)
+## 🔍 Explore it
 
-### Recent Discovery Sessions
-- [[CHANGELOG - Connection Discovery YYYY-MM-DD]] - Description
-- [[CHANGELOG - Auto-Discovery Sessions YYYY-MM-DD]] - Description
+- `/search-vault <topic>` - quick semantic search
+- `/recall <topic>` - deep, multi-layer retrieval
+- `/find-connections <note name>` - discover related notes
+- `/advise <problem>` - get advice grounded in the seeded knowledge
 
-## 🔍 Quick Access
+## ✍️ Make it yours
 
-### By Status
-- **All Permanent Notes** - Browse `02-Permanent/`
-- **All Source Notes** - Browse `01-Sources/`
-- **Open Questions** - See `04-Output/Projects/`
+The seeded notes are external research distilled into neutral, atomic notes (provenance `encountered`) - a foundation to reason *from*. Add your own thinking on top:
+- Capture in `00-Inbox/`, process atomic insights into `02-Permanent/`
+- Link generously with `[[wikilinks]]`; new MOCs emerge as your clusters grow
+- Run `/refresh-index` after adding notes so search and connections stay current
 
-### By Type
-- **Framework Notes** - See `04-Output/Frameworks/`
-- **Published Articles** - See `04-Output/Articles/`
-- **Quick Insights** - See `04-Output/Insights/`
+## 📊 Vault Statistics (seed release)
 
-## 🎯 Projects & Output
-
-### Active Projects
-- [[Project - Topic Name]] - Status
-- [[Research Question]] - Status
-
-### Recent Output
-- [[Article - Title]] - Published/Draft
-- [[Framework - Name]] - Status
-- [[Insight Collection]] - Count
-
-## 📊 Vault Statistics
-
-- **Total Notes**: Update after running `/analyze-kb`
-- **Permanent Notes**: Count notes in `02-Permanent/`
-- **MOCs**: Count this and other MOCs
-- **Source Books**: Count notes in `01-Sources/Books/`
-- **Last Updated**: Today's date
+- **Total notes**: ~1,067 · **Graph edges**: ~5,000 (explicit + semantic)
+- **Seeded library**: ~1,031 research / book-insight notes across 57 research sessions + 6 book scopes
+- **Maps of Content**: 13
+- Run `/analyze-kb` anytime to regenerate full statistics
 
 ---
 
-## 🚀 Getting Started
-
-**New to this vault?** Start with:
-1. Browse `02-Permanent/` to see your insights
-2. Try `/search-vault <topic>` to search
-3. Run `/find-connections` on any note
-4. Review `05-Meta/Changelogs/` for discoveries
-
-**Creating new notes?**
-- Capture quickly in `00-Inbox/Quick Captures/`
-- Process into `02-Permanent/` regularly
-- Link to related notes with `[[wikilinks]]`
-- Update this MOC when themes emerge
-
-**Finding connections?**
-- Run `/find-connections <note name>`
-- Review connection maps in changelogs
-- Add wikilinks between related notes
-- Create new MOCs when clusters form
-
----
-
-## 📖 Documentation
-
-- `../README.md` - Brain folder overview
-- `../FOLDER-STRUCTURE.md` - Organization guide
-- `../EXAMPLES.md` - Sample notes & workflows
-- `05-Meta/Templates/` - Note templates
-
----
-
-**This MOC is your home base.** Update it regularly as your knowledge graph grows!
-
-*Tip: Use `/analyze-kb` monthly to generate comprehensive vault statistics.*
+**This MOC is your home base.** Browse [[MOC - Knowledge Base]] to dive into the seeded knowledge, or start adding your own notes in `02-Permanent/`.

@@ -1,6 +1,6 @@
 # Brain - Your Knowledge Workspace
 
-This is your primary intellectual workspace where knowledge flows from capture to creation.
+This is your primary intellectual workspace where knowledge flows from capture to creation. It **ships pre-seeded** with ~1,000 interlinked notes on decision-making and cognition - explore them via [[MOC - Knowledge Base]], then add your own thinking on top.
 
 ## 🗺️ Folder Structure
 
@@ -8,11 +8,13 @@ This is your primary intellectual workspace where knowledge flows from capture t
 Brain/
 ├── 00-Inbox/              Capture & staging
 ├── 01-Sources/            Source material (books, articles, videos)
-├── 02-Permanent/          Your atomic insights (the core)
+├── 02-Permanent/          Your atomic insights (the core) - add yours here
 ├── 03-MOCs/               Navigation hubs (Maps of Content)
 ├── 04-Output/             Published work & synthesis
 ├── 05-Meta/               Workflow & evolution tracking
-└── AI Extracted Notes/    AI-generated notes (separate provenance)
+├── AI Extracted Notes/    AI-generated notes (separate provenance)
+├── Document Insights/     Seeded: research-finding summaries (57 sessions)
+└── Books/                 Seeded: atomic insights from decision-science books
 ```
 
 ## 📊 Information Flow
@@ -146,4 +148,4 @@ See these files for details:
 
 ---
 
-**Start here**: Create your first note in `02-Permanent/` and run `/find-connections` to see the magic! ✨
+**Start here**: Open [[MOC - Knowledge Base]] to explore the ~1,000 seeded notes, try `/advise <a decision you're facing>`, then create your first note in `02-Permanent/` and run `/find-connections` to weave it in. ✨
