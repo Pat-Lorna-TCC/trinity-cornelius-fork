@@ -6,7 +6,15 @@ Capture insights, discover connections, and synthesize knowledge - with AI assis
 
 > 🌱 **Ships pre-seeded.** This isn't an empty template - it comes with a working knowledge graph of **~1,000 interlinked notes** on decision-making, judgment, and cognitive science (distilled from published research and books, ~5,000 edges). Clone it and `/advise`, `/recall`, or `/find-connections` work immediately. Start at [`Brain/03-MOCs/MOC - Knowledge Base.md`](Brain/03-MOCs/MOC%20-%20Knowledge%20Base.md), then layer your own thinking on top. See [knowledge-base-analysis.md](knowledge-base-analysis.md) for what's inside.
 
-## What's New in v05.26
+## What's New in v06.26
+
+- **Seeded public knowledge base (1,031 notes)** - The template now ships with a real, fully-indexed library instead of a few showcase notes: 1,031 decision-science notes distilled from 57 research sessions and 6 books, spanning decision-making, judgment, behavioral economics, and the cognitive science beneath good decisions
+- **11 new Maps of Content** - Topic-level navigation across decision-making, cognitive biases, risk and antifragility, neuroscience, consciousness, learning and memory, motivation, social cognition, embodied cognition, and meaning and wisdom
+- **Portable prebuilt index** - The FAISS + graph index was rebuilt over the new corpus with vault-relative paths, so semantic search, recall, and connection discovery work on any clone immediately - no indexing required before you start exploring
+- **Neutral, provenance-tagged notes** - External research distilled into atomic notes (provenance: encountered), navigated via the MOCs; only the foundation tier is published (agent-research and private tiers withheld)
+
+<details>
+<summary>v05.26 changes</summary>
 
 - **Incubation loop** - Autonomous iterative thinking engine; each run applies a rotating analytical move (ACH, Bayesian update, steelman, cross-domain bridge, implication check) and persists reasoning state across scheduled runs
 - **Domain watch** - Autonomous perception layer that scans the KB for new notes matching configured domains, checks gap resonance, and probes external signals to auto-activate topics for the incubation loop
@@ -14,6 +22,7 @@ Capture insights, discover connections, and synthesize knowledge - with AI assis
 - **YouTube transcript** - Extract transcripts from any YouTube video for processing into the knowledge base
 - **deep-research Phase 4** - Optional insight interview step before connection discovery, capturing your personal angles alongside extracted research
 - **45 skills** for insight capture, autonomous thinking, connection discovery, research, and content creation
+</details>
 
 <details>
 <summary>v04.26 changes</summary>
@@ -477,6 +486,7 @@ graph TB
 
 | Version | Changes |
 |---------|---------|
+| v06.26 | Seeded public knowledge base (1,031 decision-science notes + 11 MOCs), portable rebuilt index |
 | v05.26 | Incubation loop, domain watch, insight interview, YouTube transcript, deep-research Phase 4, 45 skills |
 | v04.26 | Brain Dependency Graph, staleness propagation, lifecycle scoring, tension detection, coherence sweeps, brain merge, explanatory images, LBS daemon, 36 skills |
 | v03.26 | SYNAPSE memory, dialectic engine, autonomous research, insight graduation, 30 skills |
