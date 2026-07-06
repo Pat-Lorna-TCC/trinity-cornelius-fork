@@ -45,6 +45,25 @@ resources/local-brain-search/run_connections.sh --stats --json
 resources/local-brain-search/run_connections.sh --bridges --json
 ```
 
+**READ SCOPE:** with scope enforcement on, a bare command reads only the **core**
+fingerprint (`02-Permanent`, `03-MOCs`, `AI Extracted Notes`, `01-Sources`). That
+is the right default when you are mapping the curated graph (e.g. the
+`/find-connections` command). But when your task is to connect **newly-created
+non-core notes** into the graph - e.g. spawned by `deep-research` / `economist-analyze`
+to map connections for fresh `Document Insights/` notes, or by `ingest-source` for
+fresh `Books/<slug>/` notes - those targets live outside core, so a bare command can
+neither resolve nor reach them. In that case prefix every search/connection command
+with the scopes your task spans, e.g.:
+
+```bash
+BRAIN_READ_SCOPE=core,document-insights resources/local-brain-search/run_connections.sh "New DI Note" --json
+BRAIN_READ_SCOPE=core,document-insights resources/local-brain-search/run_search.sh "topic" --limit 10 --json
+# book notes: mount the shelf (one book = core,Books/<slug>)
+BRAIN_READ_SCOPE=core,Books resources/local-brain-search/run_connections.sh "New Book Note" --json
+```
+
+(`--hubs`/`--bridges` stay the core fingerprint by design - do not widen those.)
+
 ---
 
 # Connection Finder Agent

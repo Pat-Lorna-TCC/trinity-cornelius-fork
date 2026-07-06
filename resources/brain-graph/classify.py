@@ -26,6 +26,27 @@ from store import (
     set_node_enrichment, set_edge_enrichment,
 )
 
+# Reference-kind scopes (e.g. Brain/Company/) hold external FACTS, not claims:
+# they have no reflective -> crystallizing -> generative lifecycle. The BDG must
+# not classify them, so they never get a layer/lifecycle and never enter the
+# lifecycle / coherence / tension computations. We borrow the single source of
+# truth (the scope registry) from LBS rather than duplicating the folder list.
+# memory_config is import-safe from here: it pulls ONLY stdlib (no config/models),
+# so it cannot collide with the BDG's own config.py / models.py.
+_LBS_DIR = Path(__file__).resolve().parent.parent / "local-brain-search"
+if str(_LBS_DIR) not in sys.path:
+    sys.path.append(str(_LBS_DIR))
+try:
+    from memory_config import is_reference_scope
+except Exception:  # fail OPEN to legacy behavior, but make it loud
+    def is_reference_scope(_note_id: str) -> bool:
+        return False
+    print(
+        "WARN: could not import is_reference_scope from LBS memory_config; "
+        "reference-kind scopes will NOT be excluded from BDG classification.",
+        file=sys.stderr,
+    )
+
 
 # =============================================================================
 # LAYER CLASSIFICATION
@@ -293,8 +314,16 @@ def bootstrap(force: bool = False) -> dict:
     print(f"Classifying {G.number_of_nodes()} nodes...")
     layer_counts = {}
     framework_count = 0
+    reference_skipped = 0
 
     for note_id in G.nodes:
+        # Reference-kind notes are external facts with no lifecycle: skip them
+        # entirely. With no enrichment entry they are also dropped from edge
+        # typing (the edge loop below continues when a node is unenriched) and
+        # from every downstream engine that reads enrichments["nodes"].
+        if is_reference_scope(note_id):
+            reference_skipped += 1
+            continue
         node_enrichment = classify_node(
             note_id, G, path_layer_map, framework_detection,
         )
@@ -311,6 +340,8 @@ def bootstrap(force: bool = False) -> dict:
     for layer in ("signal", "impression", "insight", "framework", "lens", "synthesis", "index"):
         count = layer_counts.get(layer, 0)
         print(f"    {layer:12s}: {count:5d}")
+    if reference_skipped:
+        print(f"  reference-kind (no lifecycle, excluded): {reference_skipped}")
 
     # Classify edges
     print(f"Typing {G.number_of_edges()} edges...")

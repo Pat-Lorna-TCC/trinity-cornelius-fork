@@ -10,10 +10,12 @@ Options:
 """
 import argparse
 import hashlib
+import json
 import pickle
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import faiss
@@ -23,13 +25,17 @@ from sentence_transformers import SentenceTransformer
 
 from config import (
     BRAIN_PATH,
+    BUILDER_VERSION,
+    CORE_FOLDERS,
     DATA_DIR,
+    EDGE_FORMULA,
     EMBEDDING_DIM,
     EMBEDDING_MODEL,
     EXCLUDED_FOLDERS,
     FAISS_INDEX_PATH,
     GRAPH_PICKLE_PATH,
     INCLUDE_PATTERNS,
+    MANIFEST_PATH,
     METADATA_PATH,
     MIN_CHUNK_LENGTH,
     SEMANTIC_EDGE_THRESHOLD,
@@ -157,9 +163,7 @@ def build_explicit_graph(notes: list[dict]) -> nx.DiGraph:
         G.add_node(
             note['note_id'],
             title=note['title'],
-            # Store the vault-relative id (== note_id) so the index is portable
-            # across machines and never embeds an absolute home path.
-            filepath=note['note_id'],
+            filepath=str(note['filepath']),
         )
 
     # Add edges from wiki-links
@@ -206,9 +210,13 @@ def add_semantic_edges(
             if result_idx < 0 or result_idx >= len(metadata):
                 continue
 
-            # Convert L2 distance to cosine similarity (for normalized vectors)
-            # L2^2 = 2 - 2*cos_sim, so cos_sim = 1 - L2^2/2
-            similarity = 1 - dist / 2
+            # The index is faiss.IndexFlatIP, so `dist` is the inner product,
+            # which for normalized vectors IS the cosine similarity. Use it
+            # directly. The old `1 - dist/2` assumed an L2 index and INVERTED
+            # the edge ordering: it scored dissimilar pairs high (passing the
+            # 0.65 threshold) and dropped truly-similar pairs. (EDGE_FORMULA /
+            # BUILDER_VERSION in memory_config track this; bumped to cosine_ip/v2.)
+            similarity = float(dist)
 
             target_note_id = metadata[result_idx]['note_id']
 
@@ -290,8 +298,7 @@ def main():
                 'note_id': note['note_id'],
                 'title': note['title'],
                 'heading': chunk['heading'],
-                # Vault-relative (== note_id) for portability — see build_explicit_graph.
-                'filepath': note['note_id'],
+                'filepath': str(note['filepath']),
                 'content_hash': note['content_hash'],
                 'chunk_index': j,
                 'content': chunk['content'],
@@ -342,6 +349,30 @@ def main():
     print(f"  - Explicit (wiki-links): {G.number_of_edges() - semantic_edges}")
     print(f"  - Semantic (similarity): {semantic_edges}")
     print(f"\nData stored in: {DATA_DIR}")
+
+    # Build provenance stamp. Read by the daemon build-id guard (Phase 4) and by
+    # health checks to verify the persisted graph was built with the corrected
+    # cosine edge formula (cosine_ip / v2) rather than the inverted v1.
+    manifest = {
+        "edge_formula": EDGE_FORMULA,
+        "builder_version": BUILDER_VERSION,
+        "model": EMBEDDING_MODEL,
+        "embedding_dim": EMBEDDING_DIM,
+        "semantic_edge_threshold": SEMANTIC_EDGE_THRESHOLD,
+        "semantic_edge_top_k": SEMANTIC_EDGE_TOP_K,
+        "notes": len(notes),
+        "chunks": len(all_chunks),
+        "graph_nodes": G.number_of_nodes(),
+        "graph_edges": G.number_of_edges(),
+        "explicit_edges": G.number_of_edges() - semantic_edges,
+        "semantic_edges": semantic_edges,
+        "core_folders": sorted(CORE_FOLDERS),
+        "built_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with open(MANIFEST_PATH, "w") as f:
+        json.dump(manifest, f, indent=2)
+    print(f"Wrote build manifest to {MANIFEST_PATH} "
+          f"(edge_formula={EDGE_FORMULA}, builder_version={BUILDER_VERSION})")
 
 
 if __name__ == '__main__':

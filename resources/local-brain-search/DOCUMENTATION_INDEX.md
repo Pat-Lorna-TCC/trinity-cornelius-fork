@@ -192,7 +192,7 @@
 System Status: FULLY OPERATIONAL ✅
 
 Knowledge Graph:
-- all notes indexed (100% coverage)
+- 1,261 notes indexed (100% coverage)
 - 7,726 chunks created
 - 9,300 connections mapped
 - 97.9% in main connected component

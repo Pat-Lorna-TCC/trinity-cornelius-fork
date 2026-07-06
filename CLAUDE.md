@@ -708,6 +708,26 @@ Or use the plugin (recommended - see below):
 /trinity:onboard
 ```
 
+### Brain Orb — the self-rendering mind
+
+On Trinity, Cornelius gets a **Brain tab**: a live 3D knowledge graph of this
+vault (the Brain Orb). The `brain-orb` token in `template.yaml capabilities`
+gates the tab; the platform admin enables the Brain Orb feature flags.
+
+The agent side of that contract lives in this repo and works out of the box:
+
+- `resources/agent-visualization/export_data.py` renders the vault to
+  `data.json` (falls back to wikilink parsing until the Brain Dependency Graph
+  pipeline is bootstrapped); a committed `data.seed.json` makes the orb render
+  on first boot.
+- `.trinity/brain-orb/{scopes,scope,search,action}` are the convention hooks
+  Trinity brokers: live scope mount/unmount (including per-book sub-scopes),
+  read-only KB search, and owner-gated writes (capture a note, link two notes,
+  save voice transcripts, refresh the graph). Captures land in `Brain/00-Inbox/`.
+- See `.trinity/brain-orb/README.md` for the full hook contract
+  (contract_version 1; requires a Trinity base image with the Phase-4
+  brain-orb routes, 2026-07+).
+
 ### Abilities Plugin Marketplace
 
 The [Abilities plugin marketplace](https://github.com/Abilityai/abilities) provides Claude Code plugins covering the full agent lifecycle - building, developing, deploying, and operating agents on Trinity.

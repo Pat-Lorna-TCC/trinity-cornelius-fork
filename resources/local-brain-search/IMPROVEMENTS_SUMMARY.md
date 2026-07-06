@@ -227,7 +227,7 @@ The local-brain-search system is **production-ready and fully operational**. It 
 
 ```
 Knowledge Graph:
-├─ all notes indexed
+├─ 1,261 notes indexed
 ├─ 7,726 chunks created
 ├─ 9,300 connections mapped
 │  ├─ 5,201 explicit (wiki-links)

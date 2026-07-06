@@ -1,7 +1,7 @@
 # Local Brain Search System - Verification Test Report
 
 **Test Date:** 2025-12-13
-**System Location:** `./resources/local-brain-search/`
+**System Location:** `$PROJECT_ROOT/resources/local-brain-search/`
 **Python Environment:** venv/bin/python (activated)
 
 ---
@@ -136,7 +136,7 @@ Average degree:      14.75
 **Status:** ✅ Graph statistics working correctly. Shows:
 - **Total notes indexed:** 1,261
 - **Total connections:** 9,300 (5,201 explicit + 4,099 semantic)
-- **Network health:** 27 isolated notes (2.1%), 28 components, largest component holds the bulk of notes
+- **Network health:** 27 isolated notes (2.1%), 28 components, largest has 1,234 notes
 - **Connectivity:** Average 14.75 connections per note
 
 ---

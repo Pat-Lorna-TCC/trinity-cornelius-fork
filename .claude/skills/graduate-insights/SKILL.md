@@ -12,9 +12,10 @@ Review candidate notes from holding areas and promote valuable ones to permanent
 ## Purpose
 
 The knowledge base accumulates insights in multiple holding areas:
-- **AI Extracted Notes/** - Personal insights from conversations
-- **Document Insights/** - Research findings from external sources
-- **00-Inbox/** - Raw captures and staging notes
+- **AI Extracted Notes/** - Personal insights from conversations (177 notes)
+- **Document Insights/** - Research findings from external sources (1,608 notes across 89 sessions)
+- **Books/** - Per-book scopes (the gems mined from each ingested book; the `_book.md` hub is a navigation note, not a candidate)
+- **00-Inbox/** - Raw captures and staging notes (27 notes)
 
 Without periodic graduation, these insights remain unintegrated. This skill provides a structured review process to:
 1. Surface high-value candidates based on retrieval frequency and age
@@ -29,6 +30,7 @@ Without periodic graduation, these insights remain unintegrated. This skill prov
 | Q-values | `resources/local-brain-search/data/q_values.json` | Yes | No |
 | AI Extracted | `Brain/AI Extracted Notes/` | Yes | Move |
 | Document Insights | `Brain/Document Insights/*/` | Yes | Move |
+| Book scopes | `Brain/Books/*/` | Yes | Move |
 | Inbox | `Brain/00-Inbox/` | Yes | Move |
 | Permanent Notes | `Brain/02-Permanent/` | No | Yes |
 | Changelog | `Brain/CHANGELOG.md` | Yes | Yes |
@@ -50,6 +52,7 @@ Find candidate notes prioritized by:
 Collect up to **5 candidates** per session from:
 - `Brain/AI Extracted Notes/*.md`
 - `Brain/Document Insights/**/*.md` (exclude CHANGELOG files)
+- `Brain/Books/**/*.md` (exclude `_book.md` hubs and CHANGELOG files)
 - `Brain/00-Inbox/*.md`
 
 ### Step 2: For Each Candidate
@@ -100,10 +103,12 @@ When user chooses **Promote**:
      created_by: [original model if present]
      updated_by: [current model]
      agent_version: 01.25
+     provenance: [see rule below]
      graduated_from: [original path]
      graduated_date: [today]
      ---
      ```
+   - **Provenance rule (mandatory):** default by source - `Document Insights/` and `Books/` -> `encountered`; `AI Extracted Notes/` or agent synthesis -> `ai-inferred`. Preserve an existing `provenance:` value if the candidate already carries one. Per CLAUDE.md's guarded boundary, only set `originated` or `endorsed` when the user explicitly says so at the Promote decision - graduation must never silently mint `originated`.
    - Verify atomic insight format (single clear idea)
    - Ensure wiki-links use `[[Note Title]]` format
    - Remove source-specific metadata (session info, extraction date)

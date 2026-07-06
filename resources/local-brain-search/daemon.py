@@ -10,9 +10,17 @@ Start:  ./run_daemon.sh start
 Stop:   ./run_daemon.sh stop
 Reload: ./run_daemon.sh reload   (or: kill -SIGHUP <pid>)
 
+SCOPE (Phase 4): this is ONE shared long-lived process, so scope cannot ride a
+process-level env var - it travels as the per-request `&scope=` query param,
+resolved through resolve_read_scope() (fail-closed to core when absent). Any
+change to the scope code (or the `scope.enforce` flag) requires a RESTART, not a
+/reload - reload re-reads data only, not Python. The wrapper's build-id guard
+(/health build_id vs on-disk brain.faiss mtime) fails a stale daemon over to the
+fresh-process CLI path rather than serving a wrongly-scoped result.
+
 Endpoints:
-    GET  /search?q=...&limit=10&threshold=0.5&mode=static&intent=...&explain=0&no_track=0&full=0
-    GET  /connections?q=...&depth=1&semantic_only=0&explicit_only=0
+    GET  /search?q=...&limit=10&threshold=0.5&mode=static&intent=...&explain=0&no_track=0&full=0&scope=core
+    GET  /connections?q=...&depth=1&semantic_only=0&explicit_only=0&scope=core
     GET  /connections/stats
     GET  /connections/hubs
     GET  /connections/bridges
@@ -47,10 +55,16 @@ from config import (
     FAISS_INDEX_PATH,
     GRAPH_PICKLE_PATH,
     METADATA_PATH,
+    clear_scoped_subgraph_cache,
+    core_subgraph,
+    resolve_read_scope,
+    scope_enforced,
+    scoped_subgraph,
 )
 from intent import QueryIntent, classify_intent
 from learning import adjust_scores_with_q_values, log_retrieval
 from memory_config import MEMORY_CONFIG
+from scope import build_scope_selector
 from spreading import SpreadingConfig, get_top_activated, spreading_activation
 
 
@@ -67,6 +81,7 @@ class BrainStore:
         self.graph = None
         self.model = None
         self.loaded_at = None
+        self.build_id = None  # int(mtime) of brain.faiss - the wrapper stale-guard key
 
     def load(self):
         """Load everything from disk into memory."""
@@ -74,6 +89,10 @@ class BrainStore:
 
         print("Loading FAISS index...", flush=True)
         self.index = faiss.read_index(str(FAISS_INDEX_PATH))
+        # Build-id = the on-disk index mtime. The wrapper compares this against
+        # the live brain.faiss mtime; a mismatch (e.g. a reindex without a daemon
+        # restart) fails the daemon over to the fresh-process CLI path.
+        self.build_id = int(FAISS_INDEX_PATH.stat().st_mtime)
 
         print("Loading metadata...", flush=True)
         with open(METADATA_PATH, "rb") as f:
@@ -100,6 +119,9 @@ class BrainStore:
     def reload(self):
         """Reload all data from disk (after re-index)."""
         print("Reloading brain data...", flush=True)
+        # The graph object identity changes on reload; drop cached scoped-subgraph
+        # views so the fingerprint endpoints don't serve a view of the old graph.
+        clear_scoped_subgraph_cache()
         self.load()
 
 
@@ -155,19 +177,23 @@ def search_endpoint(
     explain: bool = Query(default=False),
     no_track: bool = Query(default=False),
     full: bool = Query(default=False),
+    scope: Optional[str] = Query(default=None),
 ):
     """Semantic search - mirrors search.py CLI."""
+    # Per-request scope (fail-closed to core when absent); inert while the flag is off.
+    read_scope = resolve_read_scope(scope)
+
     # Encode query
     query_embedding = store.model.encode([q], normalize_embeddings=True)
     query_embedding = np.array(query_embedding).astype("float32")
 
     if mode == "spreading":
         results, meta = _spreading_search(
-            q, query_embedding, limit, threshold, intent, explain, not no_track
+            q, query_embedding, limit, threshold, intent, explain, not no_track, read_scope
         )
     else:
         results = _static_search(
-            q, query_embedding, limit, threshold, not no_track
+            q, query_embedding, limit, threshold, not no_track, read_scope
         )
         meta = {"mode": "static", "learning_enabled": MEMORY_CONFIG["learning"]["enabled"]}
 
@@ -179,9 +205,23 @@ def search_endpoint(
     )
 
 
-def _static_search(query, query_embedding, limit, threshold, track_usage):
+def _static_search(query, query_embedding, limit, threshold, track_usage, read_scope=None):
+    if read_scope is None:
+        read_scope = resolve_read_scope(None)
+
+    # Scope read-mask (Phase 4, gated). Mirrors search.static_search; keep in
+    # lockstep. _scope_backing must outlive index.search (FAISS borrows it).
+    params = None
+    _scope_backing = None
+    if scope_enforced():
+        selector, _scope_backing = build_scope_selector(store.metadata, read_scope)
+        if selector is None:
+            return []
+        params = faiss.SearchParameters()
+        params.sel = selector
+
     k = min(limit * 2, store.index.ntotal)
-    distances, indices = store.index.search(query_embedding, k)
+    distances, indices = store.index.search(query_embedding, k, params=params)
 
     results = []
     for dist, idx in zip(distances[0], indices[0]):
@@ -205,7 +245,7 @@ def _static_search(query, query_embedding, limit, threshold, track_usage):
     # Q-value adjustment
     if MEMORY_CONFIG["learning"]["enabled"] and results:
         scores = {r["note_id"]: r["similarity"] for r in results}
-        adjusted = adjust_scores_with_q_values(scores)
+        adjusted = adjust_scores_with_q_values(scores, read_scope=read_scope)
         for r in results:
             r["similarity"] = adjusted.get(r["note_id"], r["similarity"])
         results.sort(key=lambda x: x["similarity"], reverse=True)
@@ -213,12 +253,14 @@ def _static_search(query, query_embedding, limit, threshold, track_usage):
     # Log retrieval
     if track_usage and results:
         note_ids = [r["note_id"] for r in results]
-        log_retrieval(note_ids, query, intent="static", mode="static")
+        log_retrieval(note_ids, query, intent="static", mode="static", read_scope=read_scope)
 
     return results
 
 
-def _spreading_search(query, query_embedding, limit, threshold, intent_override, explain, track_usage):
+def _spreading_search(query, query_embedding, limit, threshold, intent_override, explain, track_usage, read_scope=None):
+    if read_scope is None:
+        read_scope = resolve_read_scope(None)
     # Classify intent
     intent_result = classify_intent(query)
     if intent_override:
@@ -229,9 +271,28 @@ def _spreading_search(query, query_embedding, limit, threshold, intent_override,
     else:
         intent_val = intent_result.intent
 
+    # Scope read-mask on the SEED search (Phase 4, gated); the walk below runs on
+    # the scoped subgraph - both atomic, mirrors search.spreading_search.
+    params = None
+    _scope_backing = None
+    if scope_enforced():
+        selector, _scope_backing = build_scope_selector(store.metadata, read_scope)
+        if selector is None:
+            return [], {
+                "intent": intent_val.value,
+                "confidence": intent_result.confidence,
+                "reasoning": intent_result.reasoning,
+                "seed_count": 0,
+                "iterations": 0,
+                "converged": False,
+                "learning_enabled": MEMORY_CONFIG["learning"]["enabled"],
+            }
+        params = faiss.SearchParameters()
+        params.sel = selector
+
     # Get seed nodes
     k = min(10, store.index.ntotal)
-    distances, indices = store.index.search(query_embedding, k)
+    distances, indices = store.index.search(query_embedding, k, params=params)
 
     note_scores = {}
     for dist, idx in zip(distances[0], indices[0]):
@@ -255,18 +316,20 @@ def _spreading_search(query, query_embedding, limit, threshold, intent_override,
             "learning_enabled": MEMORY_CONFIG["learning"]["enabled"],
         }
 
-    # Spreading activation using in-memory graph
+    # Spreading activation using in-memory graph. Under enforcement the walk runs
+    # on the scoped subgraph so activation cannot leak past the boundary.
+    G = scoped_subgraph(store.graph, read_scope) if scope_enforced() else store.graph
     config = SpreadingConfig.from_intent(intent_val)
     result = spreading_activation(
-        store.graph, seed_nodes=seed_nodes, config=config, track_traces=explain
+        G, seed_nodes=seed_nodes, config=config, track_traces=explain
     )
 
-    top_results = get_top_activated(result, store.graph, limit=limit)
+    top_results = get_top_activated(result, G, limit=limit)
 
     # Q-value adjustment
     if MEMORY_CONFIG["learning"]["enabled"] and top_results:
         scores = {r["note_id"]: r["activation"] for r in top_results}
-        adjusted = adjust_scores_with_q_values(scores)
+        adjusted = adjust_scores_with_q_values(scores, read_scope=read_scope)
         for r in top_results:
             r["activation"] = adjusted.get(r["note_id"], r["activation"])
 
@@ -276,7 +339,7 @@ def _spreading_search(query, query_embedding, limit, threshold, intent_override,
     # Log retrieval
     if track_usage and top_results:
         note_ids = [r["note_id"] for r in top_results]
-        log_retrieval(note_ids, query, intent=intent_val.value, mode="spreading")
+        log_retrieval(note_ids, query, intent=intent_val.value, mode="spreading", read_scope=read_scope)
 
     meta = {
         "intent": intent_val.value,
@@ -309,9 +372,8 @@ def _spreading_search(query, query_embedding, limit, threshold, intent_override,
 # CONNECTIONS ENDPOINTS
 # =============================================================================
 
-def _find_note_id(query: str) -> Optional[str]:
-    """Find note ID by name, title, or partial match."""
-    G = store.graph
+def _find_note_id(G, query: str) -> Optional[str]:
+    """Find note ID by name, title, or partial match (within the passed graph)."""
     query_lower = query.lower()
 
     if query in G.nodes:
@@ -335,10 +397,16 @@ def connections_endpoint(
     depth: int = Query(default=1),
     semantic_only: bool = Query(default=False),
     explicit_only: bool = Query(default=False),
+    scope: Optional[str] = Query(default=None),
 ):
-    """Find connections for a note - mirrors connections.py CLI."""
-    G = store.graph
-    note_id = _find_note_id(q)
+    """Find connections for a note - mirrors connections.py CLI.
+
+    Traversal (name-resolution + depth>1 BFS) runs on the scoped subgraph under
+    enforcement; whole graph while the flag is off. Mirrors connections.main.
+    """
+    read_scope = resolve_read_scope(scope)
+    G = scoped_subgraph(store.graph, read_scope) if scope_enforced() else store.graph
+    note_id = _find_note_id(G, q)
     if not note_id:
         return JSONResponse(
             status_code=404,
@@ -443,9 +511,18 @@ def stats_endpoint():
 
 
 @app.get("/connections/hubs")
-def hubs_endpoint(top_n: int = Query(default=20)):
-    """Find hub notes."""
-    G = store.graph
+def hubs_endpoint(
+    top_n: int = Query(default=20),
+    scope: Optional[str] = Query(default=None),
+):
+    """Find hub notes. Fingerprint axis - core-scoped when enforcement is on.
+
+    `scope` is accepted for wrapper-URL uniformity but ignored: the fingerprint
+    is ALWAYS the core subgraph (it answers "who am I", not "what can I read").
+    Mirrors connections.find_hubs; the two must stay in lockstep (the wrapper
+    tries the daemon first, so an unpaired edit silently diverges).
+    """
+    G = core_subgraph(store.graph) if scope_enforced() else store.graph
     degree_centrality = nx.degree_centrality(G)
     sorted_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)
 
@@ -464,9 +541,16 @@ def hubs_endpoint(top_n: int = Query(default=20)):
 
 
 @app.get("/connections/bridges")
-def bridges_endpoint(top_n: int = Query(default=20)):
-    """Find bridge notes."""
-    G = store.graph
+def bridges_endpoint(
+    top_n: int = Query(default=20),
+    scope: Optional[str] = Query(default=None),
+):
+    """Find bridge notes. Fingerprint axis - core-scoped when enforcement is on.
+
+    `scope` is accepted for wrapper-URL uniformity but ignored (always core - the
+    fingerprint). Mirrors connections.find_bridges; keep in lockstep with the CLI.
+    """
+    G = core_subgraph(store.graph) if scope_enforced() else store.graph
     betweenness = nx.betweenness_centrality(G)
     sorted_nodes = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)
 
@@ -492,6 +576,8 @@ def health():
     return {
         "status": "ok",
         "loaded_at": store.loaded_at,
+        "build_id": store.build_id,
+        "scope_enforced": scope_enforced(),
         "chunks": store.index.ntotal if store.index else 0,
         "nodes": store.graph.number_of_nodes() if store.graph else 0,
         "edges": store.graph.number_of_edges() if store.graph else 0,

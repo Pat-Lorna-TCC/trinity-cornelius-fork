@@ -94,21 +94,24 @@ Conduct comprehensive research on [topic] focusing EXCLUSIVELY on the most recen
 ⚠️ CRITICAL RECENCY REQUIREMENT:
 Your training data may be outdated. The world changes rapidly, especially in fast-moving fields like AI, neuroscience, and technology. You MUST prioritize the most recent information available through web search, even if it contradicts what you think you know from training data.
 
+⚠️ SOURCE QUALITY REQUIREMENT (recency is NOT enough):
+Recent does not mean credible. Prefer the PRIMARY source over anyone summarizing it - the actual paper, lab page, or official doc, not a content-farm writeup, an AI-generated summary, a single-tweet leak, or an SEO explainer. Reject machine-generated and regurgitated material. For each finding, record which source it came from so downstream extraction can tier it. (The per-domain source diet is the canonical `resources/SOURCE-AUTHORITY.md`; the document-insight-extractor applies it at extraction time.)
+
 SEARCH STRATEGY:
 - Use Google Search grounding to find papers published in the last 12-18 months
-- Explicitly search for "2024", "2025", "recent", "latest" in queries
-- Check paper publication dates - reject anything older than 2023 unless foundational
+- Explicitly search for "2024", "2025", "2026", "recent", "latest" in queries
+- Check paper publication dates - reject anything older than 2024 unless foundational
 - Look for preprints, conference proceedings, and recent journal publications
-- Prioritize arXiv papers from last 6 months, conference papers from 2024-2025
-- Search for "state of the art [topic] 2024" or "[topic] breakthrough 2025"
+- Prioritize arXiv papers from last 6 months, conference papers from 2024-2026
+- Search for "state of the art [topic] 2025" or "[topic] breakthrough 2026"
 
 RESEARCH REQUIREMENTS:
 
 1. **Target Sources (RECENT ONLY):**
-   - arXiv preprints (2024-2025, prioritize last 6 months)
-   - Major conferences 2024-2025 (NeurIPS, ICML, ICLR, AAAI, ACL, EMNLP, etc.)
+   - arXiv preprints (2024-2026, prioritize last 6 months)
+   - Major conferences 2024-2026 (NeurIPS, ICML, ICLR, AAAI, ACL, EMNLP, etc.)
    - Leading AI labs recent publications (OpenAI, Anthropic, Google DeepMind, Microsoft Research)
-   - Top-tier journals (2024-2025 issues only)
+   - Top-tier journals (2024-2026 issues only)
    - Industry whitepapers and blog posts from major tech companies (last 12 months)
    - Recent preprints and working papers
 
@@ -132,7 +135,7 @@ RESEARCH REQUIREMENTS:
 4. **Save Location:**
    resources/[Topic-Slug]-Research-Report-YYYY-MM-DD.md
 
-VERIFICATION: Before finalizing, verify that 80%+ of papers are from 2024-2025. If not, search again with more explicit recency filters.
+VERIFICATION: Before finalizing, verify that 80%+ of papers are from 2024-2026. If not, search again with more explicit recency filters. Also verify the sources are credible primaries (actual papers/labs/official docs), not content-farm pages or AI-generated summaries.
 
 Use Gemini AI with Google Search grounding. Trust the search results over your training data.
 ```
@@ -514,12 +517,12 @@ Generate a comprehensive session report including:
 ### Topic Selection (Autonomous Mode)
 - **Strategic alignment:** Choose topics that build on existing strengths or fill critical gaps
 - **Cross-domain potential:** Prefer topics that bridge multiple knowledge base hubs
-- **Empirical grounding:** Select areas with active research (2024-2025 papers available)
+- **Empirical grounding:** Select areas with active research (2024-2026 papers available)
 - **Practical relevance:** Topics should have real-world applications or implications
 
 ### Research Quality
-- **Recency:** Prioritize 2024-2025 papers and developments
-- **Rigor:** Focus on peer-reviewed research and reputable sources
+- **Recency:** Prioritize 2024-2026 papers and developments
+- **Rigor:** Prefer primary sources (the actual paper/lab/official doc) over summaries; reject content-farm and AI-generated regurgitation. See the canonical source diet in `resources/SOURCE-AUTHORITY.md`.
 - **Depth:** 15-25 major papers minimum per topic
 - **Breadth:** Cover multiple perspectives and approaches
 - **Empirics:** Include quantified results and performance metrics

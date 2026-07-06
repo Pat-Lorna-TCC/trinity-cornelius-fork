@@ -43,7 +43,7 @@ grep -rl "[topic keywords]" Brain/02-Permanent/ Brain/AI\ Extracted\ Notes/ | he
 ```
 
 Read the top 8-10 results. Understand:
-- What you already believe about this topic
+- What the user already believes about this topic
 - Which claims are well-developed vs. sketched
 - Where tensions or contradictions exist between notes
 - What connections are asserted but not fully argued

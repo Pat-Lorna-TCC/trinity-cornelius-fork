@@ -16,6 +16,7 @@ Create publication-ready long-form articles by synthesizing insights from the us
 3. **Create article folder** with proper structure
 4. **Write article** following tone of voice guidelines
 5. **Update Article Index** with new entry
+6. **Upload to Google Drive** `Articles/cornelius_drafts` for review
 
 ## State Dependencies
 
@@ -32,6 +33,8 @@ Create publication-ready long-form articles by synthesizing insights from the us
 | Article Folder | `Brain/04-Output/Articles/[article-name]/` | | ✓ | Output folder for article |
 | Main Article | `Brain/04-Output/Articles/[article-name]/[article-name].md` | | ✓ | The article itself |
 | Metadata File | `Brain/04-Output/Articles/[article-name]/_metadata.md` | | ✓ | Creation record |
+| Google Drive | `Articles/cornelius_drafts` (shared drive) | | ✓ | Upload article folder for review |
+| Drive Folder Map | `.claude/resources/google_drive_folders.md` | ✓ | | Google Drive folder IDs |
 
 ## Core Workflow
 
@@ -98,6 +101,21 @@ Add entry to `ARTICLE-INDEX.md`:
 - Status (Draft)
 - Notes
 
+### Step 6: Upload to Google Drive
+
+Upload the article folder to `Articles/cornelius_drafts` on the shared Google Drive:
+
+```bash
+# Upload the entire article folder (with images, metadata, etc.)
+python3 .claude/scripts/google/google_drive.py upload-folder "Brain/04-Output/Articles/[article-name]" 1fxxbEwS86gguYXA1hJsFesr13ruXx80S --recursive
+```
+
+**Google Drive folder IDs**: See `.claude/resources/google_drive_folders.md`
+
+- `Articles/cornelius_drafts` folder ID: `1fxxbEwS86gguYXA1hJsFesr13ruXx80S`
+- This puts the article where the user and a content agent can access it for review and publishing
+- The folder preserves the same structure as the local article folder
+
 ## File References
 
 For detailed guidance, see:
@@ -112,7 +130,7 @@ For detailed guidance, see:
 
 ### Voice Summary
 
-Your long-form voice is defined in [tone-of-voice.md](tone-of-voice.md). Fill that file in with your own Voice DNA (recurring traits, structural patterns, vocabulary) so generated articles sound like you. Until you do, articles use a neutral, clear default voice.
+the user's long-form voice transforms complex research into actionable business insights through methodical, evidence-based teaching. He challenges assumptions with data while maintaining accessibility, creating structured learning experiences that bridge academic rigor with practical application.
 
 ### Essential Do's
 
@@ -166,12 +184,12 @@ Adjust content based on target platform:
 
 ---
 
-## Content Agent Integration
+## Content-Agent Integration
 
-This skill can be called headlessly by a content agent for content production:
+This skill can be called headlessly by content agent for content production:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"
+cd $PROJECT_ROOT
 claude -p "/create-article <topic> for <platform>" --output-format json
 ```
 
@@ -211,4 +229,5 @@ open "Brain/04-Output/Articles/[article-name]/"
 - [ ] Main article written following tone of voice guidelines
 - [ ] _metadata.md created with source insights and thinking process
 - [ ] Article Index updated with new entry (date, topic, status)
+- [ ] Article folder uploaded to Google Drive `Articles/cornelius_drafts`
 - [ ] Article folder opened in Finder for user review

@@ -44,6 +44,17 @@ If missing, abort.
 resources/local-brain-search/run_index.sh
 ```
 
+The indexer rebuilds the FAISS index and the connection graph in full on every
+run, and writes a build manifest to `data/manifest.json` stamping the edge
+formula (`cosine_ip`) and `builder_version`. **After any change to the indexing
+or edge logic** (e.g. the semantic-edge similarity formula), pass `--force` to
+make the full rebuild explicit and bump `BUILDER_VERSION` in `memory_config.py`
+so the manifest records the new build:
+
+```bash
+resources/local-brain-search/run_index.sh --force
+```
+
 ### Step 3: Verify Index
 
 Confirm index works:

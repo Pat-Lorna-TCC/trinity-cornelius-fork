@@ -21,6 +21,7 @@ New notes often sit unconnected. This playbook identifies notes from the last 14
 | Permanent Notes | `Brain/02-Permanent/` | ✓ | | Recent notes source |
 | AI Extracted Notes | `Brain/AI Extracted Notes/` | ✓ | | Recent notes source |
 | Document Insights | `Brain/Document Insights/` | ✓ | | Recent notes source |
+| Book scopes | `Brain/Books/` | ✓ | | Recent notes source (per-book scopes) |
 | Local Brain Search | `resources/local-brain-search/` | ✓ | | Connection discovery |
 | Session Changelogs | `Brain/05-Meta/Changelogs/` | | ✓ | Integration report |
 
@@ -38,6 +39,7 @@ Find notes modified in the last 14 days:
 find Brain/02-Permanent -name "*.md" -mtime -14 -type f
 find Brain/AI\ Extracted\ Notes -name "*.md" -mtime -14 -type f
 find Brain/Document\ Insights -name "*.md" -mtime -14 -type f
+find Brain/Books -name "*.md" -mtime -14 -type f
 ```
 
 Compile list of recent notes.
@@ -53,9 +55,11 @@ date '+%Y-%m-%d'
 For each recent note:
 
 1. Extract note title from filename
-2. Run connection discovery:
+2. Run connection discovery (wide read-scope: recent notes live in 00-Inbox /
+   Document Insights / Books / 05-Meta - core-only would fail to resolve the note
+   itself or its non-core neighbors once scope enforcement is on):
    ```bash
-   resources/local-brain-search/run_connections.sh "Note Title" --json
+   BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_connections.sh "Note Title" --json
    ```
 3. Record top 5 connections with similarity scores
 4. Check BDG layer classification:

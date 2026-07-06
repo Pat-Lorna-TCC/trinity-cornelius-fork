@@ -6,9 +6,17 @@ schedule: "0 7 * * *"
 allowed-tools: Read, Write, Grep, Glob, Bash, WebSearch
 user-invocable: true
 argument-hint: "[domain-slug] (optional - scans all active domains if omitted)"
+metadata:
+  version: "1.1"
+  updated: 2026-07-03
+  changelog:
+    - "1.1: Thinking Registry write discipline — topic activation adds a table ROW only; never write scan narratives or frontmatter fields (e.g. last_domain_watch) into THINKING-REGISTRY.md; scan results belong in the Watch Log and domain configs"
+    - "1.0: Initial version"
 ---
 
 # Domain Watch
+
+> ℹ️ **First, set expectations:** before anything else, print one short line with this skill's version and its most recent change — the top entry of `metadata.changelog` above — e.g. `domain-watch vX.Y — recent: <summary>`. Then proceed.
 
 Autonomous perception layer. Each scheduled run scans configured domains for new KB notes, checks gap resonance with the Thinking Registry, probes external signals via web search, and auto-activates HIGH/MEDIUM proposals directly into the Thinking Registry. LOW/NONE signals are logged only.
 
@@ -83,8 +91,12 @@ Parse:
 Run LBS search for each watch_query:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"
-python3 resources/local-brain-search/search.py "[watch_query]" --limit 20 --mode spreading 2>/dev/null
+cd $PROJECT_ROOT
+# --no-track: autonomous perception layer; scans must NOT train q-values (scope-primitive learning hygiene)
+# BRAIN_READ_SCOPE=<wide>: perception must SEE non-core material (new captures in 00-Inbox, Document
+#   Insights, per-book scopes in Books, thinking files in 05-Meta, article drafts in 04-Output). Without it the scan fails closed
+#   to core once scope enforcement is on and silently stops perceiving everything outside the fingerprint.
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output python3 resources/local-brain-search/search.py "[watch_query]" --limit 20 --mode spreading --no-track 2>/dev/null
 ```
 
 Then find notes modified since the last scan date:
@@ -126,7 +138,7 @@ Direct PIR hit = HIGH signal. Partial hit = MEDIUM signal.
 
 ### Step 6: External Signal Check
 
-For each `watch_query`, search for recent signals (last 7 days) from reputable sources.
+For each `watch_query`, search for recent signals (last 7 days) from reputable sources. The `site:` domains below are a subset of the canonical allowlist in `resources/SOURCE-AUTHORITY.md` - kept inline for in-query reliability; keep in sync with that file.
 
 Use targeted queries:
 - `[watch_query] site:arxiv.org OR site:nature.com OR site:pubmed.ncbi.nlm.nih.gov`
@@ -177,6 +189,23 @@ Create the thinking file at `Brain/05-Meta/Thinking/[suggested-slug].md` using t
 ```
 
 Write a summary entry to the Watch Log (Step 10) marking it **Auto-activated**.
+
+**Thinking Registry write discipline (hard rule):** activating a topic adds the table ROW above and NOTHING else to `THINKING-REGISTRY.md`. Never write scan narratives, `last_domain_watch` fields, or any other frontmatter keys into the Thinking Registry — scan results belong in the Watch Log (Step 10) and the domain config (Step 9). The registry is an index; duplicating scan narratives there made it unreadable (~100k tokens). If legacy narrative fields exist in its frontmatter, do not update or imitate them.
+
+### Step 8.5: Starvation Floor (guarantee the thinking engine never idles)
+
+After scoring all domains, read `Brain/05-Meta/Thinking/THINKING-REGISTRY.md` and count topics with `status: active`.
+
+If **zero proposals were auto-activated this run AND the registry has zero active topics**, the incubation loop would otherwise go idle. Prevent this:
+
+1. Across all watched domains, pick the single **best candidate question** even though no signal reached HIGH/MEDIUM. Rank by, in order:
+   - (a) the highest-value `priority_intelligence_requirement` not already covered by an existing topic,
+   - (b) the strongest recent external signal found in Step 6 (even if scored LOW),
+   - (c) the domain with the largest positive note delta.
+2. Compose one incubation proposal for that candidate using the Step 8 format, and activate it: create the thinking file from the incubation-loop seeding template and add it to `THINKING-REGISTRY.md` as `active`.
+3. In the Watch Log (Step 10), mark this entry **Starvation-floor activation** (agent-chosen, not signal-driven) so it stays auditable as a self-initiated topic.
+
+Activate exactly ONE topic via the floor per run - enough to keep the engine running; the next run re-evaluates. This is the one place the perception layer chooses a topic on its own initiative rather than in response to a detected signal.
 
 ### Step 9: Update Domain Config
 
@@ -314,6 +343,8 @@ Then add to `Brain/05-Meta/Watching/WATCHING-REGISTRY.md`:
 
 HIGH/MEDIUM proposals are auto-activated by Step 8 - thinking files are created and added to the Thinking Registry automatically. The Watch Log records each activation for review.
 
+When no signal qualifies and the Thinking Registry has zero active topics, the **Starvation Floor (Step 8.5)** activates exactly one agent-chosen topic from the watched domains so the incubation loop never goes idle. These are marked **Starvation-floor activation** in the Watch Log to distinguish them from signal-driven proposals.
+
 When the incubation loop marks a topic `converged`, review it manually via `/synthesize-insights`.
 
 ---
@@ -344,6 +375,8 @@ When the incubation loop marks a topic `converged`, review it manually via `/syn
 - [ ] HIGH/MEDIUM domains: incubation proposal drafted and written to Watch Log
 - [ ] HIGH/MEDIUM domains: thinking file created at `Brain/05-Meta/Thinking/[slug].md`
 - [ ] HIGH/MEDIUM domains: topic added to `THINKING-REGISTRY.md` with `status: active`
+- [ ] Starvation Floor checked: if no proposal activated AND zero active topics, one agent-chosen topic activated from watched domains
+- [ ] Floor activations (if any) marked **Starvation-floor activation** in the Watch Log
 - [ ] Each domain: config updated (last_scan, notes_at_scan)
 - [ ] Watch Log updated with all domains
 - [ ] Watching Registry updated

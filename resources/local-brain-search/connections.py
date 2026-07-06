@@ -32,7 +32,14 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super().default(obj)
 
-from config import BRAIN_PATH, GRAPH_PICKLE_PATH
+from config import (
+    BRAIN_PATH,
+    GRAPH_PICKLE_PATH,
+    core_subgraph,
+    resolve_read_scope,
+    scope_enforced,
+    scoped_subgraph,
+)
 
 
 def load_graph() -> nx.DiGraph:
@@ -185,15 +192,22 @@ def get_graph_stats(G: nx.DiGraph) -> dict:
 
 
 def find_hubs(G: nx.DiGraph, top_n: int = 20) -> list[dict]:
-    """Find hub notes (most connected)."""
-    degree_centrality = nx.degree_centrality(G)
+    """Find hub notes (most connected).
+
+    The fingerprint axis: when scope enforcement is on, centrality is computed
+    on the CORE subgraph (the curated cognitive-fingerprint corpus) so Document-
+    Insights exhaust does not inflate the published hubs. While the flag is off
+    this is the whole graph - byte-identical to the pre-scope behavior.
+    """
+    G_fp = core_subgraph(G) if scope_enforced() else G
+    degree_centrality = nx.degree_centrality(G_fp)
     sorted_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)
 
     hubs = []
     for node_id, centrality in sorted_nodes[:top_n]:
-        node_data = G.nodes[node_id]
-        in_degree = G.in_degree(node_id)
-        out_degree = G.out_degree(node_id)
+        node_data = G_fp.nodes[node_id]
+        in_degree = G_fp.in_degree(node_id)
+        out_degree = G_fp.out_degree(node_id)
 
         hubs.append({
             'note_id': node_id,
@@ -208,15 +222,20 @@ def find_hubs(G: nx.DiGraph, top_n: int = 20) -> list[dict]:
 
 
 def find_bridges(G: nx.DiGraph, top_n: int = 20) -> list[dict]:
-    """Find bridge notes (connect different communities)."""
+    """Find bridge notes (connect different communities).
+
+    Fingerprint axis: betweenness on the CORE subgraph when scope enforcement is
+    on (whole graph otherwise - byte-identical pre-scope). See find_hubs.
+    """
     # Use betweenness centrality to find bridges
-    betweenness = nx.betweenness_centrality(G)
+    G_fp = core_subgraph(G) if scope_enforced() else G
+    betweenness = nx.betweenness_centrality(G_fp)
     sorted_nodes = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)
 
     bridges = []
     for node_id, centrality in sorted_nodes[:top_n]:
         if centrality > 0:  # Only include nodes that are actual bridges
-            node_data = G.nodes[node_id]
+            node_data = G_fp.nodes[node_id]
             bridges.append({
                 'note_id': node_id,
                 'title': node_data.get('title', node_id),
@@ -340,7 +359,13 @@ def main():
     if not args.query:
         parser.error("Query required unless using --stats, --hubs, or --bridges")
 
-    note_id = find_note_id(G, args.query)
+    # Scope the traversal (Phase 4, gated): name-resolution and the depth>1 BFS
+    # run on the scoped subgraph so connections never cross the boundary. Whole
+    # graph while enforcement is off - byte-identical to pre-scope. (Hubs/bridges
+    # are the fingerprint axis and core-scope themselves; --stats stays whole-graph.)
+    G_read = scoped_subgraph(G, resolve_read_scope()) if scope_enforced() else G
+
+    note_id = find_note_id(G_read, args.query)
     if not note_id:
         print(f"Error: Note not found matching: {args.query}")
         print("\nTry searching with a different term or use --stats to see graph info.")
@@ -350,7 +375,7 @@ def main():
     include_explicit = not args.semantic_only
 
     connections = get_connections(
-        G,
+        G_read,
         note_id,
         depth=args.depth,
         include_semantic=include_semantic,

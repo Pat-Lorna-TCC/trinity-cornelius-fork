@@ -226,7 +226,7 @@ Discover connections between newly extracted insights and existing knowledge bas
 STARTING POINTS: All notes in session folder: [Session folder path]
 
 CONNECTION DISCOVERY GOALS:
-1. Bridge to existing your permanent notes
+1. Bridge to existing 530+ permanent notes
 2. Link to 6 primary thematic hubs
 3. Find cross-domain consilience opportunities
 4. Similarity thresholds: 0.65-0.85
@@ -316,7 +316,7 @@ BRANCH_NAME="learning/${DATE}-${TOPIC_SLUG}"
 Before creating the learning branch, ensure we're on main:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"
+cd $PROJECT_ROOT
 git stash --include-untracked -m "Pre-learning stash $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
 git checkout main
 git pull origin main 2>/dev/null || true

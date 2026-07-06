@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
 
-from memory_config import MEMORY_CONFIG
+from memory_config import MEMORY_CONFIG, is_pure_core, scope_enforced
 
 
 # =============================================================================
@@ -45,6 +45,7 @@ class UsageEvent:
     position_in_results: int  # 0-indexed position (for retrieved events)
     session_id: str
     mode: str  # "static" or "spreading"
+    scope: str = ""  # read-scope at retrieval time; write-only Phase-4 stamp (read by nothing yet, forward-compat insurance for the eventual per-tenant partition)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -164,17 +165,27 @@ def log_retrieval(
     intent: str,
     mode: str = "static",
     session_id: Optional[str] = None,
+    read_scope=None,
 ) -> None:
     """
     Log that notes were retrieved in search results.
 
     Call this after every search to track what was shown to the user/agent.
+
+    Scope learn-gate (Phase 4): when scope enforcement is ON, only a pure-core
+    read trains q-values; a mounted (non-core) read is recorded nowhere, so the
+    core fingerprint's learned signal is never blended with another scope's. While
+    enforcement is OFF this is a pass-through - byte-identical to the pre-scope
+    system. read_scope=None is the CLI fail-closed default and counts as pure core.
     """
     if not MEMORY_CONFIG["learning"]["enabled"]:
+        return
+    if scope_enforced() and read_scope is not None and not is_pure_core(read_scope):
         return
 
     session = session_id or _get_session_id()
     timestamp = datetime.now().isoformat()
+    scope_stamp = ",".join(sorted(read_scope)) if read_scope else ""
 
     q_values = load_q_values()
 
@@ -188,6 +199,7 @@ def log_retrieval(
             position_in_results=position,
             session_id=session,
             mode=mode,
+            scope=scope_stamp,
         )
         log_usage_event(event)
 
@@ -299,6 +311,7 @@ def _get_session_id() -> str:
 def adjust_scores_with_q_values(
     scores: dict[str, float],
     q_weight: Optional[float] = None,
+    read_scope=None,
 ) -> dict[str, float]:
     """
     Blend activation/similarity scores with learned Q-values.
@@ -306,11 +319,16 @@ def adjust_scores_with_q_values(
     Args:
         scores: {note_id: score} from search/spreading
         q_weight: How much to weight Q-values (default from config)
+        read_scope: active read-scope; under enforcement, a mounted (non-core)
+            read returns scores unchanged so core-learned q-values never re-rank
+            another scope. None / pure-core = apply the boost (pre-scope default).
 
     Returns:
         Adjusted scores
     """
     if not MEMORY_CONFIG["learning"]["enabled"]:
+        return scores
+    if scope_enforced() and read_scope is not None and not is_pure_core(read_scope):
         return scores
 
     config = MEMORY_CONFIG["learning"]

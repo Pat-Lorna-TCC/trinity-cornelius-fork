@@ -272,7 +272,7 @@ These tests are INTENTIONALLY SKIPPED to avoid side effects:
 | vault-manager (write ops) | Would modify vault notes |
 | auto-discovery | Creates changelog files |
 | insight-extractor | Creates notes in AI Extracted Notes/ |
-| document-insight-extractor | Creates notes in Document Insights/ |
+| document-insight-extractor | Creates notes in Document Insights/ (or Books/<slug>/ in Book Mode) |
 
 ---
 

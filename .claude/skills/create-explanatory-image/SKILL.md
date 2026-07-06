@@ -7,7 +7,7 @@ user-invocable: true
 metadata:
   version: "1.0"
   created: 2026-03-03
-  author: your-agent
+  author: content-agent
   ported-to: Cornelius
   ported-date: 2026-03-21
 ---

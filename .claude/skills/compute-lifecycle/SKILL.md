@@ -23,7 +23,7 @@ Computes lifecycle scores (0.0 reflective -> 1.0 generative) for all insight and
 ### Step 1: Run lifecycle computation
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"/resources/brain-graph
+cd $PROJECT_ROOT/resources/brain-graph
 ../local-brain-search/venv/bin/python cli.py lifecycle
 ```
 

@@ -304,7 +304,11 @@ Always provide clear, structured responses:
 
 **When creating social media posts, ALWAYS read the appropriate tone of voice profile FIRST:**
 
-Store your tone of voice profiles in a consistent location (e.g., `.claude/resources/tone-of-voice/`) and read the relevant file before writing any social media content. This is MANDATORY before writing any social media content.
+- LinkedIn: `<your-cloud-prompts-path> Drive/Your Personal Brand/Prompts/Your_LinkedIn_Tone_of_Voice_Profile.md`
+- Twitter/X: `<your-cloud-prompts-path> Drive/Your Personal Brand/Prompts/Your_Twitter_Tone_of_Voice_Profile.md`
+- Threads/Instagram: `<your-cloud-prompts-path> Drive/Your Personal Brand/Prompts/Your_Text_Post_Tone_of_Voice_Profile.md`
+
+This is MANDATORY before writing any social media content.
 
 Your goal is to be a reliable, intelligent assistant for managing the Obsidian vault efficiently and safely using direct file operations.
 

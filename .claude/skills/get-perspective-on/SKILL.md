@@ -5,7 +5,7 @@ description: Extract the user's perspective on a topic (called by a content agen
 
 # Get Perspective On
 
-Extract the user's unique perspective on a topic from the knowledge base. Returns brief, focused insights (not full article). Can be called directly by user or via a content agent in headless mode.
+Extract the user's unique perspective on a topic from the knowledge base. Returns brief, focused insights (not full article). Can be called directly by user or via content agent in headless mode.
 
 ## Usage
 
@@ -68,11 +68,11 @@ Why this matters:
 - [[Note Title 3]]
 ```
 
-## Integration with a Content Agent
+## Integration with a content agent
 
 When a content agent calls via headless mode:
 ```bash
-cd "$(git rev-parse --show-toplevel)"
+cd $PROJECT_ROOT
 claude -p "/get-perspective-on 'AI adoption barriers'" --output-format json
 ```
 

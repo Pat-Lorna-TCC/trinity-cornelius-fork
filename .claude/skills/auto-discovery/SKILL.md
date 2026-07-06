@@ -45,19 +45,23 @@ Use for changelog filename.
 Sample from 3-5 diverse domains using Local Brain Search:
 
 ```bash
-resources/local-brain-search/run_search.sh "dopamine" --limit 5 --json
-resources/local-brain-search/run_search.sh "uncertainty" --limit 5 --json
-resources/local-brain-search/run_search.sh "identity" --limit 5 --json
+# --no-track: autonomous weekly loop; its cross-domain samples must NOT train q-values (scope-primitive learning hygiene).
+# BRAIN_READ_SCOPE=<wide>: cross-domain (non-core) sampling is this skill's PURPOSE, so it must read past
+#   the core fingerprint. Set it wide rather than letting it fail closed to core once enforcement is on.
+#   Only the learn axis is closed (--no-track); the read axis is deliberately wide.
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_search.sh "dopamine" --limit 5 --no-track --json
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_search.sh "uncertainty" --limit 5 --no-track --json
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_search.sh "identity" --limit 5 --no-track --json
 ```
 
 Pick seed notes from different clusters.
 
 ### Step 3: Get Connections for Seeds
 
-For each seed note:
+For each seed note (same wide read-scope - the seeds and their neighbors live across domains):
 
 ```bash
-resources/local-brain-search/run_connections.sh "Note Name" --json
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_connections.sh "Note Name" --json
 ```
 
 Identify notes with similarity 0.50-0.70 from DIFFERENT domains.

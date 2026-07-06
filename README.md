@@ -162,6 +162,8 @@ Running locally is fine for development. For persistent autonomous operation - s
 
 Trinity is an open-source platform for self-hosting autonomous agent fleets. Each agent runs in an isolated Docker container with cron scheduling, real-time monitoring, and agent-to-agent delegation.
 
+On Trinity, Cornelius also gets the **Brain Orb** - a live 3D visualization of this knowledge base on the agent's Brain tab, with scope mounting (per-book sub-scopes included), voice-drivable KB search, and capture/link/refresh actions that write back into the vault. The seeded KB renders out of the box (`data.seed.json`); the hook contract ships in `.trinity/brain-orb/` (requires a Trinity base image from 2026-07 or later, with the platform's Brain Orb flags enabled).
+
 **Fastest path:** Use the `trinity` plugin from the [Abilities marketplace](https://github.com/Abilityai/abilities):
 
 ```bash

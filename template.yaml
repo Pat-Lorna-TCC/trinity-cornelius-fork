@@ -39,6 +39,7 @@ use_cases:
   - "Analyze and understand your knowledge base structure"
 
 capabilities:
+  - brain-orb
   - semantic_search
   - spreading_activation
   - usage_based_learning

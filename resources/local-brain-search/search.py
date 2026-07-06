@@ -43,6 +43,9 @@ from config import (
     EMBEDDING_MODEL,
     FAISS_INDEX_PATH,
     METADATA_PATH,
+    resolve_read_scope,
+    scope_enforced,
+    scoped_subgraph,
 )
 from intent import QueryIntent, classify_intent, IntentClassification
 from learning import (
@@ -50,6 +53,7 @@ from learning import (
     log_retrieval,
 )
 from memory_config import MEMORY_CONFIG
+from scope import build_scope_selector
 from spreading import (
     SpreadingConfig,
     SpreadingResult,
@@ -115,14 +119,31 @@ def static_search(
     with open(METADATA_PATH, 'rb') as f:
         metadata = pickle.load(f)
 
+    # Resolve read-scope (CLI fail-closed: unset BRAIN_READ_SCOPE -> core)
+    read_scope = resolve_read_scope()
+
     # Load model and encode query
     model = SentenceTransformer(EMBEDDING_MODEL)
     query_embedding = model.encode([query], normalize_embeddings=True)
     query_embedding = np.array(query_embedding).astype('float32')
 
+    # Scope read-mask (Phase 4, gated). While enforcement is OFF, params stays
+    # None and the search is byte-identical to pre-scope. While ON, an
+    # IDSelector restricts the exhaustive IndexFlatIP scan to in-scope rows (no
+    # recall cliff). _scope_backing MUST stay referenced until index.search
+    # returns - FAISS borrows the selector's buffer (dropping it early segfaults).
+    params = None
+    _scope_backing = None
+    if scope_enforced():
+        selector, _scope_backing = build_scope_selector(metadata, read_scope)
+        if selector is None:
+            return []  # nothing in scope -> empty (fail-safe, no leak)
+        params = faiss.SearchParameters()
+        params.sel = selector
+
     # Search
     k = min(limit * 2, index.ntotal)  # Get more to filter by threshold
-    distances, indices = index.search(query_embedding, k)
+    distances, indices = index.search(query_embedding, k, params=params)
 
     # Process results
     formatted_results = []
@@ -155,7 +176,7 @@ def static_search(
     if MEMORY_CONFIG["learning"]["enabled"] and formatted_results:
         # Build score dict
         scores = {r['note_id']: r['similarity'] for r in formatted_results}
-        adjusted = adjust_scores_with_q_values(scores)
+        adjusted = adjust_scores_with_q_values(scores, read_scope=read_scope)
 
         # Update similarities and re-sort
         for r in formatted_results:
@@ -165,7 +186,7 @@ def static_search(
     # Log retrieval for learning
     if track_usage and formatted_results:
         note_ids = [r['note_id'] for r in formatted_results]
-        log_retrieval(note_ids, query, intent="static", mode="static")
+        log_retrieval(note_ids, query, intent="static", mode="static", read_scope=read_scope)
 
     return formatted_results
 
@@ -198,14 +219,37 @@ def spreading_search(
     with open(METADATA_PATH, 'rb') as f:
         metadata = pickle.load(f)
 
+    # Resolve read-scope (CLI fail-closed: unset BRAIN_READ_SCOPE -> core)
+    read_scope = resolve_read_scope()
+
     # Load model and encode query
     model = SentenceTransformer(EMBEDDING_MODEL)
     query_embedding = model.encode([query], normalize_embeddings=True)
     query_embedding = np.array(query_embedding).astype('float32')
 
+    # Scope read-mask on the SEED search (Phase 4, gated). Masking the seeds is
+    # necessary but NOT sufficient - the walk below must also run on the scoped
+    # subgraph, or activation leaks past the boundary. The two are atomic.
+    params = None
+    _scope_backing = None
+    if scope_enforced():
+        selector, _scope_backing = build_scope_selector(metadata, read_scope)
+        if selector is None:
+            return [], {
+                'intent': intent.value,
+                'confidence': intent_result.confidence,
+                'reasoning': intent_result.reasoning,
+                'seed_count': 0,
+                'iterations': 0,
+                'converged': False,
+                'learning_enabled': MEMORY_CONFIG["learning"]["enabled"],
+            }
+        params = faiss.SearchParameters()
+        params.sel = selector
+
     # Get initial seed nodes from vector similarity
     k = min(10, index.ntotal)  # Top 10 as seeds
-    distances, indices = index.search(query_embedding, k)
+    distances, indices = index.search(query_embedding, k, params=params)
 
     # Convert to note-level seeds (aggregate chunks to notes)
     note_scores = {}
@@ -236,8 +280,12 @@ def spreading_search(
             'learning_enabled': MEMORY_CONFIG["learning"]["enabled"],
         }
 
-    # Load graph and run spreading activation
+    # Load graph and run spreading activation. Under enforcement the walk runs
+    # on the scoped subgraph (boundary-crossing edges removed) so activation
+    # cannot leak out of scope - the necessary partner to the seed mask above.
     G = load_graph()
+    if scope_enforced():
+        G = scoped_subgraph(G, read_scope)
     config = SpreadingConfig.from_intent(intent)
 
     result = spreading_activation(
@@ -254,7 +302,7 @@ def spreading_search(
     # Apply Q-value adjustment if learning is enabled
     if MEMORY_CONFIG["learning"]["enabled"] and top_results:
         scores = {r['note_id']: r['activation'] for r in top_results}
-        adjusted = adjust_scores_with_q_values(scores)
+        adjusted = adjust_scores_with_q_values(scores, read_scope=read_scope)
 
         for r in top_results:
             r['activation'] = adjusted.get(r['note_id'], r['activation'])
@@ -266,7 +314,7 @@ def spreading_search(
     # Log retrieval for learning
     if track_usage and top_results:
         note_ids = [r['note_id'] for r in top_results]
-        log_retrieval(note_ids, query, intent=intent.value, mode="spreading")
+        log_retrieval(note_ids, query, intent=intent.value, mode="spreading", read_scope=read_scope)
 
     # Build metadata
     search_meta = {

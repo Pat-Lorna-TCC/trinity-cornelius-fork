@@ -25,7 +25,7 @@ Extract a full transcript from any YouTube video using the local youtube-transcr
 Run the wrapper script with the URL or video ID the user provided:
 
 ```bash
-scripts/utilities/yt-transcript.sh "<url-or-id>"
+$PROJECT_ROOT/scripts/utilities/yt-transcript.sh "<url-or-id>"
 ```
 
 Options:
@@ -49,7 +49,7 @@ Return the full transcript text to the user. If it's long (>500 lines), summariz
 User: "get me the transcript of https://youtu.be/abc123"
 
 ```bash
-scripts/utilities/yt-transcript.sh "https://youtu.be/abc123"
+$PROJECT_ROOT/scripts/utilities/yt-transcript.sh "https://youtu.be/abc123"
 ```
 
 ## Notes

@@ -29,7 +29,7 @@ Run a full coherence analysis of the knowledge base using the Brain Dependency G
 ### Step 1: Check bootstrap status
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"/resources/brain-graph
+cd $PROJECT_ROOT/resources/brain-graph
 ../local-brain-search/venv/bin/python cli.py status
 ```
 

@@ -55,6 +55,15 @@ Follow these steps:
    resources/local-brain-search/run_connections.sh --bridges --json
    ```
 
+   **Fingerprint scope note:** `--hubs`/`--bridges` are the *cognitive-fingerprint*
+   axis. Scope enforcement is now ON (`MEMORY_CONFIG['scope']['enforce']=True`,
+   since 2026-06-25; see SCOPE-IMPLEMENTATION-PLAN.md), so they compute on the
+   **core** subgraph only (`02-Permanent`, `03-MOCs`, `AI Extracted Notes`,
+   `01-Sources`). Document-Insights-inflated hubs (Dopamine/Flow) no longer appear;
+   the true core hubs (MOC - Eight-Circuit, Decision Making, Gilbert, Tetlock,
+   Hagen) surface. `--stats` stays whole-graph (it answers "how big is the
+   store", not "who am I"). Note which mode is active when recording hubs.
+
 6. Pull BDG statistics for layer distribution and lifecycle phases:
    ```bash
    resources/brain-graph/run_brain_graph.sh status --json
@@ -92,6 +101,7 @@ Generate a **condensed, scannable, high-signal** report that reveals the knowled
 | Sources | `Brain/01-Sources/` | X | | Reference materials |
 | AI Insights | `Brain/AI Extracted Notes/` | X | | AI-extracted notes |
 | Document Insights | `Brain/Document Insights/` | X | | Research session notes |
+| Book scopes | `Brain/Books/` | X | | Per-book scopes (non-core, family) |
 | Changelogs | `Brain/05-Meta/Changelogs/` | X | | Session logs |
 | Local Brain Search | `resources/local-brain-search/` | X | | Graph statistics, hubs, bridges |
 | Knowledge base analysis | `knowledge-base-analysis.md` | X | X | Output report |

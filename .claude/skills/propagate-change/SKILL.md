@@ -23,7 +23,7 @@ When a note is substantially edited, this skill computes which downstream notes 
 ### Step 1: Run propagation
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"/resources/brain-graph
+cd $PROJECT_ROOT/resources/brain-graph
 ../local-brain-search/venv/bin/python cli.py propagate "<NOTE_NAME>"
 ```
 

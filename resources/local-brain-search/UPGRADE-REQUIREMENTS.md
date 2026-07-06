@@ -64,7 +64,7 @@ This document specifies requirements for upgrading Cornelius's Local Brain Searc
 
 ### 1.1 Existing Architecture
 
-**Location:** `./resources/local-brain-search/`
+**Location:** `$PROJECT_ROOT/resources/local-brain-search/`
 
 **Components:**
 - `index_brain.py` - FAISS index builder

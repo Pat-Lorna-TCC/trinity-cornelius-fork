@@ -160,6 +160,13 @@ cd resources/local-brain-search
 
 Verify that hub notes don't dominate results.
 
+> **Scope note:** `Dopamine.md` was the canonical hub example *on the whole-graph
+> fingerprint* (DI-inflated). Scope enforcement is now ON (since 2026-06-25; see
+> SCOPE-IMPLEMENTATION-PLAN.md), so the core-scoped hubs are MOC - Eight-Circuit
+> / Decision Making / Gilbert / Tetlock - use one of those as the "known hub"
+> probe. Dopamine remains a valid permanent note and search target either way -
+> only its *centrality ranking* changed (it is no longer a top hub).
+
 ```bash
 cd resources/local-brain-search
 

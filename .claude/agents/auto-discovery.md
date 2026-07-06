@@ -42,6 +42,20 @@ resources/local-brain-search/run_connections.sh --stats --json
 resources/local-brain-search/run_connections.sh --bridges --json
 ```
 
+**READ SCOPE (load-bearing for this agent):** cross-domain sampling across non-core
+material (Document Insights, 05-Meta, etc.) IS this agent's purpose. With scope
+enforcement on, a bare `run_search.sh` / `run_connections.sh` reads only the core
+fingerprint and would silently sample nothing outside it - defeating the agent. So
+prefix every search/connection command here with a wide read-scope, and pass
+`--no-track` (autonomous sampling must not train q-values):
+
+```bash
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_search.sh "query" --limit 10 --no-track --json
+BRAIN_READ_SCOPE=core,Books,document-insights,meta,inbox,output resources/local-brain-search/run_connections.sh "Note Name" --no-track --json
+```
+
+(`--hubs`/`--bridges` remain the core fingerprint by design - do not widen those.)
+
 ---
 
 # Auto-Discovery Agent: Cross-Domain Connection Hunter

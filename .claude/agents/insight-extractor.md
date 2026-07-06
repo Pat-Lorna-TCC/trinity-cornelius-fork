@@ -34,6 +34,18 @@ resources/local-brain-search/run_search.sh "query" --limit 10 --json
 resources/local-brain-search/run_connections.sh "Note Name" --json
 ```
 
+**READ SCOPE (important for duplicate-detection):** your extractions land in
+`AI Extracted Notes/` (core), but a near-duplicate of the insight may already
+exist as a `Document Insights/` note, which is NOT in the default `core`
+read-scope. Once scope enforcement is on, a plain `run_search.sh` searches only
+core and would miss those. So prefix every dedup / similarity / connection
+search with `BRAIN_READ_SCOPE=core,document-insights`:
+```bash
+BRAIN_READ_SCOPE=core,document-insights resources/local-brain-search/run_search.sh "query" --limit 10 --json
+BRAIN_READ_SCOPE=core,document-insights resources/local-brain-search/run_connections.sh "Note Name" --json
+```
+(Harmless today - a no-op until enforcement flips on - and correct after.)
+
 ---
 
 # Insight Extractor Agent
@@ -213,6 +225,7 @@ For each unique insight that passed deduplication, create a permanent note with:
 **Type**: [Personal Theory / Contrarian View / Synthesis / Experience Wisdom / Mental Model / Pattern / Value Discovery]
 **Source**: [File path, section, or post identifier]
 **Uniqueness**: [What makes this distinctively the author's thinking]
+**Provenance**: originated (the user's own thinking - never demote toward consensus)
 **Extracted By**: AI (insight-extractor agent)
 **Extraction Date**: [YYYY-MM-DD]
 
