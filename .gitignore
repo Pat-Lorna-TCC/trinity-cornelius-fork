@@ -233,3 +233,19 @@ resources/agent-visualization/voice/conversations/
 # COMMITTED/synced by default - no privacy gate, treated like any other note.
 # (If a future scope must be host-local, add `Brain/<Scope>/` here; see
 # resources/layered-brains/REFERENCE-SCOPE-SCHEMA.md "The privacy gate".)
+.trinity/
+.claude/sessions/
+credentials.json
+.bash_logout
+.bashrc
+.profile
+.bash_history
+.env.*
+.npm/
+.ssh/
+.tmp/
+.claude.json
+.claude.json.backup
+*.tmp
+*.local.md
+*.local.json
