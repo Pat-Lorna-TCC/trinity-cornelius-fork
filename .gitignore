@@ -238,14 +238,17 @@ resources/agent-visualization/voice/conversations/
 # COMMITTED/synced by default - no privacy gate, treated like any other note.
 # (If a future scope must be host-local, add `Brain/<Scope>/` here; see
 # resources/layered-brains/REFERENCE-SCOPE-SCHEMA.md "The privacy gate".)
-.trinity/
+
+# Container/shell runtime files (never agent value, never commit).
+# NOTE: no blanket `.trinity/` or `.env.*` here - those shadow the
+# `!.trinity/brain-orb/` negation above and .env.example respectively,
+# and caused the 9197cda "Trinity sync" commit to delete tracked files.
 .claude/sessions/
 credentials.json
 .bash_logout
 .bashrc
 .profile
 .bash_history
-.env.*
 .npm/
 .ssh/
 .tmp/
