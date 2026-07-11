@@ -180,9 +180,16 @@ git:
   ignore_paths:
     - .mcp.json
     - .env
-    - .trinity/
     - .claude/commands/trinity/
     - resources/local-brain-search/data/
+    # NOTE: .trinity/ intentionally NOT listed here. This repo commits real
+    # content under .trinity/ (setup.sh, brain-orb/* hook contract) - Trinity's
+    # own compatible-agent guide documents ignore_paths as controlling what the
+    # onboarding/sync mechanism treats as platform-owned vs repo-owned, and an
+    # entry here for .trinity/ is the most likely cause of commit 9197cda
+    # ("Trinity sync") deleting .env.example + .trinity/brain-orb/* + setup.sh
+    # 3 minutes after container creation on 2026-07-07. .claude/commands/trinity/
+    # stays listed - it's genuinely empty/platform-owned in this repo.
 
 # Planning Configuration
 planning:
