@@ -175,6 +175,7 @@ git:
     - memory/
     - plans/
     - Brain/
+    - Business/
     - outputs/
   ignore_paths:
     - .mcp.json

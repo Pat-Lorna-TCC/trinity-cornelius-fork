@@ -500,6 +500,48 @@ Skills are modular capabilities that can be invoked with `/skill-name`. Key skil
     - Extract the transcript from a YouTube video by URL or video ID
     - Falls back automatically if the requested language isn't available
 
+30. **Business Vault Write** (`/business-vault-write`)
+    - Create/update a note inside `Business/`, hygiene-gated
+    - Scoped entirely apart from the knowledge base — see Business Vault Mediation below
+
+31. **Business Vault Route** (`/business-vault-route`)
+    - Move a file between `Business/` locations with required owner/due-date/task-required metadata
+    - Dry-preview before executing, never invents metadata
+
+32. **Business Vault Health Check** (`/business-vault-health-check`)
+    - Scan `Business/` for hygiene violations — inbox SLA, draft/review expiry, orphan routes
+    - Read-only — flags, never fixes
+
+---
+
+## Business Vault Mediation
+
+Alongside the knowledge-base capabilities above, Cornelius also acts as
+**Chief's single-writer mediator for business-process vault content** — a
+role ported from the now-retired `trinity-obsidian-vault` agent (2026-07-11).
+
+**This is a fully segregated facet, not a KB feature:**
+
+- Scope is hard-limited to `Business/` (siblings: `00-INBOX/`,
+  `01-PLANNING/requests/`, `02-DRAFTS/`, `03-REVIEW/`, `07-ARCHIVE/promoted/`)
+  — never `Brain/`, `AI Extracted Notes/`, `Document Insights/`, or any other
+  KB folder.
+- Enforced rules live in `resources/business-vault/RULES.md` — inbox SLA
+  (>48h), draft expiry (>14d), review expiry (>7d), archive immutability,
+  mandatory owner/due-date/task-required metadata on every routed item, and
+  destructive-ops gating. These rules are unrelated to and do not apply to
+  Zettelkasten/KB content.
+- **Executor, not strategist**, for this facet: Chief decides priority and
+  routing destination; Cornelius validates against the rules, executes, and
+  reports back — mirroring the KB's read/write split but with hygiene gates
+  instead of Zettelkasten criteria.
+- Reached by Chief via `mcp__trinity__chat_with_agent` — never direct vault
+  file access.
+- Skills: `/business-vault-write`, `/business-vault-route`,
+  `/business-vault-health-check` (see numbered list above). None of
+  Cornelius's other agents or skills (`vault-manager`, `insight-extractor`,
+  etc.) ever target `Business/` — see Rule 0 in the rules doc.
+
 ---
 
 ### **INTEGRATION WITH CONTENT AGENTS**
@@ -662,7 +704,18 @@ Brain/
 └── README.md                    # Vault overview
 
 resources/                       # Work in progress, tools, scripts
-└── local-brain-search/          # Local vector search system (FAISS)
+├── local-brain-search/          # Local vector search system (FAISS)
+└── business-vault/
+    └── RULES.md                 # Hard boundaries for the Business/ mediation facet
+
+Business/                        # Chief's business-process vault — fully segregated from Brain/
+├── 00-INBOX/                    # Unrouted incoming items (48h SLA)
+├── 01-PLANNING/
+│   └── requests/                # Routed items awaiting action
+├── 02-DRAFTS/                   # Draft content (14d expiry)
+├── 03-REVIEW/                   # Items under review (7d expiry)
+└── 07-ARCHIVE/
+    └── promoted/                # Immutable — never edited directly
 
 .claude/
 ├── agents/                      # Sub-agent definitions
