@@ -10,6 +10,7 @@
 #   ./run_learning.sh log read "Note"  # Manually log a read event
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/load_vault_path.sh"
 cd "$SCRIPT_DIR"
 
 # Activate virtual environment if it exists

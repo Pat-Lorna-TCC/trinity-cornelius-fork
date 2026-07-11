@@ -16,6 +16,11 @@
 .claude/claude_desktop_config.json
 settings.local.json
 
+# User-specific vault path config (hardcodes a local filesystem path).
+# .claude/settings.md.template is the committed reference; copy it to
+# settings.md and fill in your own VAULT_BASE_PATH.
+.claude/settings.md
+
 # Claude runtime state (NOT agent value - these are ephemeral)
 # Agent value (.claude/skills/, rules/, agents/, commands/, memory/) MUST be tracked
 .claude/debug/

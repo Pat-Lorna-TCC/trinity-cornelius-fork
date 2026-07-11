@@ -22,6 +22,7 @@
 #   ./run_search.sh "what is spreading activation" --mode spreading --explain --json
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/load_vault_path.sh"
 PORT="${BRAIN_DAEMON_PORT:-7437}"
 DAEMON_URL="http://127.0.0.1:$PORT"
 FAISS_FILE="$SCRIPT_DIR/data/brain.faiss"

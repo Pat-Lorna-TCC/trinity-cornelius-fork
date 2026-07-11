@@ -3,6 +3,7 @@
 # Usage: ./run_daemon.sh start|stop|restart|reload|status
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/load_vault_path.sh"
 PID_FILE="$SCRIPT_DIR/daemon.pid"
 PORT="${BRAIN_DAEMON_PORT:-7437}"
 PYTHON="$SCRIPT_DIR/venv/bin/python"
