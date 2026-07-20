@@ -10,4 +10,4 @@ remotes:
     instance: http://localhost
     profile: localhost
     deployed_at: "2026-07-07T16:38:47Z"
-    description: Deployed via /trinity:onboard (github:Pat-Lorna-TCC/trinity-cornelius)
+    description: Deployed via /trinity:onboard (github:Pat-Lorna-TCC/trinity-cornelius-fork)
