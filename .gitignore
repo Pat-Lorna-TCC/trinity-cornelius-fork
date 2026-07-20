@@ -257,6 +257,3 @@ credentials.json
 *.tmp
 *.local.md
 *.local.json
-.env.*
-.trinity/
-.trinity-clone-tmp/
