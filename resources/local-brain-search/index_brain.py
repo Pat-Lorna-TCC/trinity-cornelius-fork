@@ -194,7 +194,10 @@ def add_semantic_edges(
         if note_id not in note_embeddings:
             note_embeddings[note_id] = i  # Use first chunk as representative
 
-    for note in notes:
+    total_notes = len(notes)
+    for n_done, note in enumerate(notes, 1):
+        if n_done % 500 == 0:  # heartbeat: keep the foreground call under the 300s watchdog
+            print(f"  semantic edges: {n_done}/{total_notes} notes", flush=True)
         note_id = note['note_id']
         if note_id not in note_embeddings:
             continue
@@ -247,55 +250,93 @@ def add_semantic_edges(
                 )
 
 
+def load_previous(force):
+    """Per-note metadata + reconstructed embedding vectors from the persisted
+    index, so an incremental run can REUSE the embedding of any note whose
+    content is unchanged (matched by content_hash). Returns (meta_by_note,
+    vecs_by_note, hash_by_note); all empty on --force, a missing/mismatched
+    index, or any read error (=> a full rebuild). Vectors come straight out of
+    the IndexFlatIP via reconstruct_n — no separate embedding cache needed."""
+    if force or not (FAISS_INDEX_PATH.exists() and METADATA_PATH.exists()):
+        return {}, {}, {}
+    try:
+        idx = faiss.read_index(str(FAISS_INDEX_PATH))
+        with open(METADATA_PATH, 'rb') as f:
+            meta = pickle.load(f)
+        if idx.ntotal != len(meta):        # index/metadata drifted apart — distrust both
+            return {}, {}, {}
+        vecs = idx.reconstruct_n(0, idx.ntotal)
+    except Exception as e:
+        print(f"  (could not reuse previous index: {e}; full rebuild)", flush=True)
+        return {}, {}, {}
+    meta_by_note, vecs_by_note, hash_by_note = {}, {}, {}
+    for i, m in enumerate(meta):
+        nid = m['note_id']
+        meta_by_note.setdefault(nid, []).append(m)
+        vecs_by_note.setdefault(nid, []).append(vecs[i])
+        hash_by_note.setdefault(nid, m.get('content_hash'))
+    vecs_by_note = {k: np.vstack(v).astype('float32') for k, v in vecs_by_note.items()}
+    return meta_by_note, vecs_by_note, hash_by_note
+
+
 def main():
     parser = argparse.ArgumentParser(description='Index Brain folder for local vector search')
-    parser.add_argument('--force', action='store_true', help='Force re-index everything')
+    parser.add_argument('--force', action='store_true',
+                        help='Ignore the existing index and re-embed every note in one '
+                             'unbounded pass (for attended manual rebuilds).')
+    parser.add_argument('--max-embed-notes', type=int, default=500,
+                        help='Cap how many notes are (re)embedded per run so a big rebuild '
+                             'splits into short, Trinity-safe calls (0 = unbounded). Notes past '
+                             'the cap are deferred; the next run reuses whatever is already '
+                             'indexed, so repeated runs converge. Prints "remaining=N" — the '
+                             'caller re-runs while N>0.')
     args = parser.parse_args()
 
     # Ensure data directory exists
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"Loading embedding model: {EMBEDDING_MODEL}...")
+    print(f"Loading embedding model: {EMBEDDING_MODEL}...", flush=True)
     start_time = time.time()
     model = SentenceTransformer(EMBEDDING_MODEL)
-    print(f"  Model loaded in {time.time() - start_time:.1f}s")
+    print(f"  Model loaded in {time.time() - start_time:.1f}s", flush=True)
 
-    print(f"\nCollecting notes from {BRAIN_PATH}...")
+    print(f"\nCollecting notes from {BRAIN_PATH}...", flush=True)
     notes = collect_notes()
-    print(f"  Found {len(notes)} notes")
+    print(f"  Found {len(notes)} notes", flush=True)
 
-    # Check for existing index
-    if FAISS_INDEX_PATH.exists() and METADATA_PATH.exists() and not args.force:
-        print("\nLoading existing index...")
-        index = faiss.read_index(str(FAISS_INDEX_PATH))
-        with open(METADATA_PATH, 'rb') as f:
-            existing_metadata = pickle.load(f)
-        print(f"  Existing index has {index.ntotal} vectors")
+    # ---- incremental reuse -------------------------------------------------
+    # Reuse the embedding of every note whose content is unchanged since the last
+    # build; only NEW or CHANGED notes are re-embedded, turning a ~15-20 min full
+    # embed into seconds on a normal day. --max-embed-notes additionally bounds a
+    # cold/forced rebuild into several SHORT runs (the "many short calls" the
+    # Trinity stall watchdog requires): notes past the cap are deferred, reusing
+    # their old vector if they have one, and the persisted partial index lets the
+    # next run pick up where this one stopped. See .claude/skills/refresh-index.
+    old_meta, old_vecs, old_hash = load_previous(args.force)
+    cap = None if (args.force or args.max_embed_notes <= 0) else args.max_embed_notes
 
-        # Check for changes
-        existing_hashes = {m['note_id']: m.get('content_hash') for m in existing_metadata}
-        notes_to_index = []
-        for note in notes:
-            if note['note_id'] not in existing_hashes or existing_hashes[note['note_id']] != note['content_hash']:
-                notes_to_index.append(note)
-
-        if not notes_to_index:
-            print("  No changes detected, skipping re-indexing")
-            # Still need to rebuild graph potentially
-        else:
-            print(f"  {len(notes_to_index)} notes have changed, will re-index all (FAISS doesn't support incremental)")
-            args.force = True  # Force full re-index since FAISS doesn't support incremental well
-
-    print("\nChunking notes...")
-    all_chunks = []
-    all_metadata = []
+    all_metadata, all_vectors = [], []   # aligned; each vector is a 1-D float32 array
+    embed_texts, embed_slots = [], []    # chunk texts to embed now + their slots in all_vectors
+    reused = embedded = deferred = 0
 
     for note in notes:
-        chunks = chunk_by_headings(note['content'], note['filepath'])
-        for j, chunk in enumerate(chunks):
-            all_chunks.append(chunk['content'])
+        nid = note['note_id']
+        if nid in old_vecs and old_hash.get(nid) == note['content_hash']:
+            for m, v in zip(old_meta[nid], old_vecs[nid]):     # unchanged — reuse verbatim
+                all_metadata.append(m)
+                all_vectors.append(v)
+            reused += 1
+            continue
+        if cap is not None and embedded >= cap:                # over this run's budget — defer
+            if nid in old_vecs:                                # keep old vector so the index stays complete
+                for m, v in zip(old_meta[nid], old_vecs[nid]):
+                    all_metadata.append(m)
+                    all_vectors.append(v)
+            deferred += 1
+            continue
+        for j, chunk in enumerate(chunk_by_headings(note['content'], note['filepath'])):
             all_metadata.append({
-                'note_id': note['note_id'],
+                'note_id': nid,
                 'title': note['title'],
                 'heading': chunk['heading'],
                 'filepath': str(note['filepath']),
@@ -303,38 +344,67 @@ def main():
                 'chunk_index': j,
                 'content': chunk['content'],
             })
+            all_vectors.append(None)                           # placeholder, filled after embed
+            embed_texts.append(chunk['content'])
+            embed_slots.append(len(all_vectors) - 1)
+        embedded += 1
 
-    print(f"  Created {len(all_chunks)} chunks from {len(notes)} notes")
+    print(f"  reuse={reused} notes | embed={embedded} notes "
+          f"({len(embed_texts)} chunks) | defer={deferred} notes", flush=True)
 
-    print("\nGenerating embeddings...")
-    start_time = time.time()
-    embeddings = model.encode(all_chunks, show_progress_bar=True, normalize_embeddings=True)
-    embeddings = np.array(embeddings).astype('float32')
-    print(f"  Generated {len(embeddings)} embeddings in {time.time() - start_time:.1f}s")
+    # ---- embed only the delta (batched, flushed heartbeat) -----------------
+    # Batched so a foreground call never goes silent >300s (the stall watchdog).
+    # show_progress_bar stays OFF (its in-place tqdm bar emits nothing parseable
+    # until EOF when piped). Batched encoding is numerically identical to one call
+    # (normalize is per-vector).
+    if embed_texts:
+        t0 = time.time()
+        HEARTBEAT_BATCH = 512
+        for i in range(0, len(embed_texts), HEARTBEAT_BATCH):
+            part = np.asarray(
+                model.encode(embed_texts[i:i + HEARTBEAT_BATCH],
+                             show_progress_bar=False, normalize_embeddings=True),
+                dtype='float32')
+            for k in range(len(part)):
+                all_vectors[embed_slots[i + k]] = part[k]
+            done = min(i + HEARTBEAT_BATCH, len(embed_texts))
+            print(f"  embedded {done}/{len(embed_texts)} new chunks "
+                  f"in {time.time() - t0:.0f}s", flush=True)
 
-    print("\nBuilding FAISS index...")
-    # Use IndexFlatIP for cosine similarity (since embeddings are normalized)
-    index = faiss.IndexFlatIP(EMBEDDING_DIM)
+    embeddings = (np.vstack(all_vectors).astype('float32') if all_vectors
+                  else np.zeros((0, EMBEDDING_DIM), dtype='float32'))
+
+    print("\nBuilding FAISS index...", flush=True)
+    index = faiss.IndexFlatIP(EMBEDDING_DIM)   # inner product == cosine (vectors are normalized)
     index.add(embeddings)
-    print(f"  Index has {index.ntotal} vectors")
+    print(f"  Index has {index.ntotal} vectors "
+          f"({len(notes) - deferred} notes indexed, {deferred} deferred)", flush=True)
 
-    print(f"\nSaving index to {FAISS_INDEX_PATH}...")
+    print(f"Saving index to {FAISS_INDEX_PATH}...", flush=True)
     faiss.write_index(index, str(FAISS_INDEX_PATH))
-
-    print(f"Saving metadata to {METADATA_PATH}...")
+    print(f"Saving metadata to {METADATA_PATH}...", flush=True)
     with open(METADATA_PATH, 'wb') as f:
         pickle.dump(all_metadata, f)
 
-    print("\nBuilding connection graph...")
+    # Resumable stop: the graph + manifest tail runs ONLY on the final pass, so
+    # every intermediate call stays short. deferred>0 means more notes await
+    # embedding — the caller re-runs, which reuses this just-persisted partial
+    # index and continues where we left off.
+    if deferred:
+        print(f"\nPARTIAL run: {deferred} notes not yet embedded; re-run to continue.", flush=True)
+        print(f"RESULT reused={reused} embedded={embedded} remaining={deferred}", flush=True)
+        return
+
+    print("\nBuilding connection graph...", flush=True)
     G = build_explicit_graph(notes)
-    print(f"  Graph has {G.number_of_nodes()} nodes and {G.number_of_edges()} explicit edges")
+    print(f"  Graph has {G.number_of_nodes()} nodes and {G.number_of_edges()} explicit edges", flush=True)
 
     # Add semantic edges
     add_semantic_edges(G, index, all_metadata, notes, embeddings)
     semantic_edges = sum(1 for _, _, d in G.edges(data=True) if d.get('type') == 'semantic')
-    print(f"  Added {semantic_edges} semantic edges")
+    print(f"  Added {semantic_edges} semantic edges", flush=True)
 
-    print(f"\nSaving graph to {GRAPH_PICKLE_PATH}...")
+    print(f"\nSaving graph to {GRAPH_PICKLE_PATH}...", flush=True)
     with open(GRAPH_PICKLE_PATH, 'wb') as f:
         pickle.dump(G, f)
 
@@ -343,11 +413,12 @@ def main():
     print("INDEXING COMPLETE")
     print("=" * 50)
     print(f"Notes indexed: {len(notes)}")
-    print(f"Total chunks: {len(all_chunks)}")
+    print(f"Total chunks: {len(all_metadata)}")
     print(f"Graph nodes: {G.number_of_nodes()}")
     print(f"Graph edges: {G.number_of_edges()}")
     print(f"  - Explicit (wiki-links): {G.number_of_edges() - semantic_edges}")
     print(f"  - Semantic (similarity): {semantic_edges}")
+    print(f"This run: reused {reused} notes, embedded {embedded} notes")
     print(f"\nData stored in: {DATA_DIR}")
 
     # Build provenance stamp. Read by the daemon build-id guard (Phase 4) and by
@@ -361,7 +432,7 @@ def main():
         "semantic_edge_threshold": SEMANTIC_EDGE_THRESHOLD,
         "semantic_edge_top_k": SEMANTIC_EDGE_TOP_K,
         "notes": len(notes),
-        "chunks": len(all_chunks),
+        "chunks": len(all_metadata),
         "graph_nodes": G.number_of_nodes(),
         "graph_edges": G.number_of_edges(),
         "explicit_edges": G.number_of_edges() - semantic_edges,
@@ -373,6 +444,7 @@ def main():
         json.dump(manifest, f, indent=2)
     print(f"Wrote build manifest to {MANIFEST_PATH} "
           f"(edge_formula={EDGE_FORMULA}, builder_version={BUILDER_VERSION})")
+    print(f"RESULT reused={reused} embedded={embedded} remaining=0", flush=True)
 
 
 if __name__ == '__main__':

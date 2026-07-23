@@ -1,6 +1,6 @@
 ---
 name: update-changelog
-description: Update Knowledge Graph Changelog
+description: Append a dated entry to the master Brain/CHANGELOG.md summarizing this session's knowledge-graph changes - notes created, connections/links added, and significant edits. Use after a vault working session to record what changed and why it matters.
 ---
 
 # Update Knowledge Graph Changelog
