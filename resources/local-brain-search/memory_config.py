@@ -103,12 +103,16 @@ SCOPE_REGISTRY = [
     # fine-grained per-book scope is scope_id() and only the read-membership predicate
     # in_read_scope() is family-aware. See scope_id / in_read_scope below.
     ScopeDef("Books",              SCOPE_KIND_COGNITIVE, False, ("books",), family=True),
-    # --- reference (external facts/records; connection targets, not claims) ---
-    # First reference scope: corporate data. Add more the same way - a CRM still
-    # owns queries; this is a layer of insight/connection targets the personal
-    # brain discovers bridges to. Populate ONLY after deciding the privacy gate -
-    # see resources/layered-brains/REFERENCE-SCOPE-SCHEMA.md + manage-reference-data.
-    ScopeDef("Company",            SCOPE_KIND_REFERENCE, False, ("company",)),
+    # --- reference scope FAMILY (external facts/records; connection targets) ---
+    # First reference scope: the company brain. A FAMILY (like Books) - each child
+    # folder (Company/people, Company/orgs, Company/products, Company/engagements,
+    # Company/market) is its own pluggable sub-scope, mountable alone
+    # (core,Company/orgs) or whole (core,Company). scope_of() stays "Company" so
+    # every child resolves to the reference KIND (epistemic opt-out); scope_id()
+    # gives the per-child mount. A CRM still owns queries; this is a layer of
+    # insight/connection targets the personal brain discovers bridges to.
+    # See resources/layered-brains/COMPANY-BRAIN-SCHEMA.md + manage-reference-data.
+    ScopeDef("Company",            SCOPE_KIND_REFERENCE, False, ("company",), family=True),
 ]
 
 
@@ -183,7 +187,14 @@ def in_read_scope(note_id, read_scope) -> bool:
     Use this anywhere a read is gated by scope (FAISS row-mask, subgraph node filter,
     visualization render gate). Do NOT hand-roll `scope_of(x) in read_scope` - that
     silently drops per-book-mounted notes.
+
+    read_scope MUST be a resolved set. A raw mount STRING (e.g. "core,Company/people")
+    is coerced via resolve_read_scope first: without this, `in` does substring matching,
+    so scope_of=="Company" would spuriously match the substring "Company" inside
+    "core,Company/people" and leak every sibling sub-scope (a silent isolation break).
     """
+    if isinstance(read_scope, str):
+        read_scope = resolve_read_scope(read_scope)
     return scope_id(note_id) in read_scope or scope_of(note_id) in read_scope
 
 

@@ -300,14 +300,17 @@ def bootstrap(force: bool = False) -> dict:
     path_layer_map = _build_path_layer_map(artifact_types)
     edge_lookup = _build_edge_type_lookup(default_edges)
 
-    # Reset enrichments
+    # Reset enrichments - but tensions and dismissals are curated records
+    # (detected + judged + synthesis-linked), not derivable from the index,
+    # so they survive re-bootstrap.
     enrichments = {
         "version": "1.0",
         "last_bootstrap": datetime.now().isoformat(),
         "last_coherence_sweep": None,
         "nodes": {},
         "edges": {},
-        "tensions": [],
+        "tensions": enrichments.get("tensions", []),
+        "dismissed_tensions": enrichments.get("dismissed_tensions", []),
     }
 
     # Classify nodes

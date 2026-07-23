@@ -19,6 +19,76 @@ from config import LBS_FAISS_PATH, LBS_METADATA_PATH, BRAIN_PATH
 from models import TensionRecord
 
 
+# Structural artifact filters (mirror the 2026-07-11 curation pass): pairs that
+# match these are detector artifacts, not contradictions, and are never emitted.
+_INDEX_PAT = re.compile(
+    r"(CHANGELOG|Changelogs/|REGISTRY|ARTICLE-INDEX|_book\.md$|_metadata\.md$|"
+    r"05-Meta/Thinking/|05-Meta/Reports/|05-Meta/AI Crystallizations/|"
+    r"MOC - |00-Inbox/|Watch Log|watch-log|DASHBOARD|README)",
+    re.IGNORECASE,
+)
+# Above this, "high divergence" is boilerplate variation on one text, not opposition.
+_NEAR_DUP_SIMILARITY = 0.93
+
+
+def _pair_key(note_a: str, note_b: str) -> tuple[str, str]:
+    """Path-independent pair identity: sorted basenames, so a note moving folders
+    (e.g. graduating from Books/ to 02-Permanent/) keeps its dismissal."""
+    base_a = note_a.rsplit("/", 1)[-1]
+    base_b = note_b.rsplit("/", 1)[-1]
+    return tuple(sorted([base_a, base_b]))
+
+
+def _same_source_scope(note_a: str, note_b: str) -> bool:
+    """Both notes from one DI session or one book scope: a source arguing with
+    itself is the author's rhetoric, not a KB tension."""
+    parts_a, parts_b = note_a.split("/"), note_b.split("/")
+    if len(parts_a) < 2 or len(parts_b) < 2 or parts_a[0] != parts_b[0]:
+        return False
+    return parts_a[0] in ("Document Insights", "Books") and parts_a[1] == parts_b[1]
+
+
+# Brand/vision notes are aspirational statements, not opposable propositions.
+# They live in 02-Permanent alongside analytical insights but carry a distinct
+# register the negation-keyword stance heuristic systematically misreads (a Vow
+# reads as assertive; the note next to it reads as contradicting). They are
+# identified by frontmatter tag, not by name (name lists rot).
+_BRAND_TAGS = {"vows", "luminous-mind", "luminous", "seals", "canon",
+               "voice", "brand", "thresholds"}
+_TAGS_LINE = re.compile(r"^tags:\s*(.+)$", re.MULTILINE)
+
+
+def _brand_excluded_notes() -> set[str]:
+    """One-time scan: note_ids whose frontmatter tags mark them brand/vision."""
+    excluded: set[str] = set()
+    perm_dir = BRAIN_PATH / "02-Permanent"
+    if not perm_dir.is_dir():
+        return excluded
+    for path in perm_dir.glob("*.md"):
+        try:
+            head = path.read_text(encoding="utf-8")[:800]
+        except OSError:
+            continue
+        m = _TAGS_LINE.search(head)
+        if not m:
+            continue
+        tags = {t.strip().strip("[]'\"").lower() for t in re.split(r"[,\[\]]", m.group(1))}
+        if _BRAND_TAGS & tags:
+            excluded.add(f"02-Permanent/{path.name}")
+    return excluded
+
+
+def _both_document_insights(note_a: str, note_b: str) -> bool:
+    """Both notes are external research extractions. A tension here is 'the
+    literature disagrees' - encountered-vs-encountered, not a synthesis gem for
+    the owner's own thinking. The KB's valuable tensions always involve a core
+    insight (a core note contradicting a DI/book finding stays in scope). This
+    also removes the unbounded re-flood vector: DI is the largest, fastest-
+    growing folder, and its cross-session near-duplicates dominate the raw
+    detector output."""
+    return note_a.startswith("Document Insights/") and note_b.startswith("Document Insights/")
+
+
 # Opposing stance indicators
 _NEGATION_PATTERNS = [
     r"\bnot\b", r"\bnever\b", r"\bno\b", r"\bcannot\b", r"\bimpossible\b",
@@ -132,12 +202,11 @@ def detect_tensions(
 
     nodes = enrichments.get("nodes", {})
     existing_tensions = {
-        (t["note_a"], t["note_b"]) for t in enrichments.get("tensions", [])
+        _pair_key(t["note_a"], t["note_b"]) for t in enrichments.get("tensions", [])
     }
-    # Also check reverse
-    existing_tensions.update(
-        (t["note_b"], t["note_a"]) for t in enrichments.get("tensions", [])
-    )
+    # Pairs a curation pass judged non-tensions stay dismissed across re-scans -
+    # without this, every scan re-floods the store with pruned artifacts.
+    dismissed = {tuple(p) for p in enrichments.get("dismissed_tensions", [])}
 
     # Filter to target layers
     candidates = [
@@ -148,6 +217,10 @@ def detect_tensions(
     if not candidates:
         print("No candidate notes found for tension detection.")
         return []
+
+    brand_excluded = _brand_excluded_notes()
+    if brand_excluded:
+        candidates = [c for c in candidates if c not in brand_excluded]
 
     print(f"Scanning {len(candidates)} notes for tensions...")
 
@@ -191,10 +264,22 @@ def detect_tensions(
             if other_id not in nodes or nodes[other_id].get("layer") not in target_layers:
                 continue
 
-            pair_key = tuple(sorted([note_id, other_id]))
-            if pair_key in checked or pair_key in existing_tensions:
+            pair_key = _pair_key(note_id, other_id)
+            if pair_key in checked or pair_key in existing_tensions or pair_key in dismissed:
                 continue
             checked.add(pair_key)
+
+            # Structural artifact filters
+            if _INDEX_PAT.search(note_id) or _INDEX_PAT.search(other_id):
+                continue
+            if similarity >= _NEAR_DUP_SIMILARITY:
+                continue
+            if _same_source_scope(note_id, other_id):
+                continue
+            if _both_document_insights(note_id, other_id):
+                continue
+            if other_id in brand_excluded:
+                continue
 
             # Check stance divergence
             content_a = _get_note_content(note_id, metadata)

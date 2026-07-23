@@ -1,6 +1,6 @@
 ---
 name: talk
-description: Conversational Partner Mode
+description: Conversational partner mode - delegates each exchange to the thinking-partner sub-agent, which embodies the knowledge base as its own memory and engages as an intellectual equal. Use for open-ended brainstorming, exploring ideas, or thinking out loud with your second brain.
 automation: manual
 allowed-tools: Task
 ---

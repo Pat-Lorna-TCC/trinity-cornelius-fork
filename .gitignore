@@ -50,6 +50,15 @@ settings.local.json
 resources/agent-visualization/data.json
 resources/agent-visualization/data.js
 
+# Heavy A/V working artifacts (rendered explainer films, voiceover clips) kept
+# out of git — anti-bloat policy (.git was filter-repo'd 1.8GB→295MB; these are
+# regenerable outputs of the animated-explainer skill, not agent value). 2026-07-22
+resources/**/*.mp4
+resources/**/*.mov
+resources/**/*.mp3
+resources/**/*.wav
+resources/**/*.m4a
+
 # =============================================================================
 # SYSTEM FILES
 # =============================================================================
@@ -257,3 +266,10 @@ credentials.json
 *.tmp
 *.local.md
 *.local.json
+
+resources/entropy/pca_basis.npz
+
+# Claude Code plugin marketplace clones - runtime cache, not agent value.
+# Were swept in as an orphaned gitlink by a `git add -A` sync commit, which
+# broke `git submodule update --init` repo-wide once .gitmodules existed.
+.claude/plugins/marketplaces/

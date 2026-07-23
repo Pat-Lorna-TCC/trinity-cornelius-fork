@@ -338,6 +338,89 @@ def build_fallback_enrichments():
     return {"nodes": nodes, "edges": edges, "tensions": []}
 
 
+# ==================== fresh-capture overlay (delta on the snapshot) ==============
+# graph_enrichments.json is rebuilt only by the scheduled (heavy) BDG reindex, so
+# a note captured or linked on the orb between reindexes is invisible until then —
+# the exporter reads its node set from that snapshot. That breaks the orb's
+# capture→refresh→appears contract (the `refresh` verb re-runs THIS exporter and
+# nothing else). The overlay below closes the gap the cheap way: merge the vault
+# DELTA (notes on disk but not in the snapshot) on top of the rich classification,
+# exactly as reference_overlay() merges reference nodes. Only the genuinely-new
+# notes are read from disk, so a normal refresh stays fast.
+FRESH_OVERLAY_MAX = 500   # cap the delta read so a mismatched/missing snapshot can't
+                          # turn one refresh into a full-vault body scan; newest-mtime
+                          # first, so real fresh captures always win the budget.
+
+
+def overlay_vault_delta(raw_nodes, raw_edges):
+    """Merge vault notes the enrichment snapshot doesn't know about yet.
+
+    For every Brain/**/*.md missing from `raw_nodes`, add a node (folder-heuristic
+    layer/lifecycle — the same mapping the no-enrichment fallback uses) plus its
+    outgoing [[wikilink]] edges, resolved against a title index of every known note
+    (snapshot filename stems + the freshly-scanned notes' stems/H1s). Existing
+    snapshot nodes keep their BDG classification untouched; only the delta is read
+    from disk. Mutates raw_nodes/raw_edges in place; returns (added, total_missing).
+
+    Known gap: a [[link]] appended to an OLD note already in the snapshot (the
+    `link` verb's less common direction) still waits for the next reindex — we do
+    not re-read snapshot notes. Fresh captures, and links FROM new notes (the
+    reported failure), surface on the very next refresh."""
+    if not os.path.isdir(VAULT):
+        return 0, 0
+    known = set(raw_nodes)
+    title_to_id = {}
+    for nid in known:                         # cheap: filename stems, no file reads
+        stem = os.path.splitext(os.path.basename(nid))[0].strip().lower()
+        title_to_id.setdefault(stem, nid)
+
+    missing = []
+    for dp, _dn, fn in os.walk(VAULT):
+        for f in fn:
+            if not f.endswith(".md"):
+                continue
+            full = os.path.join(dp, f)
+            nid = os.path.relpath(full, VAULT).replace("\\", "/")
+            if nid in known:
+                continue
+            try:
+                mtime = os.path.getmtime(full)
+            except OSError:
+                mtime = 0.0
+            missing.append((mtime, nid, full))
+    total_missing = len(missing)
+    if not total_missing:
+        return 0, 0
+    missing.sort(key=lambda x: x[0], reverse=True)   # newest first wins the budget
+    missing = missing[:FRESH_OVERLAY_MAX]
+
+    new_bodies = {}
+    for _mtime, nid, full in missing:
+        top = scope_of(nid)
+        raw_nodes[nid] = {
+            "layer": _FALLBACK_LAYER.get(top, "insight"),
+            "lifecycle": _FALLBACK_LIFECYCLE.get(top, 0.2),
+            "staleness_score": 0.0,
+        }
+        body = read_text(full, limit=200_000)
+        new_bodies[nid] = body
+        stem = os.path.splitext(os.path.basename(nid))[0].strip().lower()
+        title_to_id.setdefault(stem, nid)
+        m = re.search(r"^#\s+(.+)$", body[:2000], re.M)
+        if m:
+            title_to_id.setdefault(m.group(1).strip().lower(), nid)
+
+    # derive edges after the title index is complete, so a new note that links to
+    # another new note resolves too (not just new → existing).
+    for nid, body in new_bodies.items():
+        for m in _WIKILINK.finditer(body):
+            tgt = title_to_id.get(m.group(1).strip().lower())
+            if tgt and tgt != nid:
+                raw_edges.setdefault(f"{nid}||{tgt}",
+                                     {"edge_type": "references", "confidence": 0.6})
+    return len(new_bodies), total_missing
+
+
 def main():
     have_enrich = os.path.exists(ENRICH)
     if have_enrich:
@@ -348,6 +431,11 @@ def main():
         enrich = build_fallback_enrichments()
     raw_nodes = enrich.get("nodes", {})
     raw_edges = enrich.get("edges", {})
+    # Overlay notes captured/linked since the last BDG reindex so the orb's
+    # capture→refresh→appears contract holds without waiting for the scheduled
+    # (heavy) reindex. The fallback path already scanned the whole vault, so it
+    # needs no overlay — only the enrichment-snapshot path can be stale.
+    overlaid, overlay_missing = overlay_vault_delta(raw_nodes, raw_edges) if have_enrich else (0, 0)
     # Tensions are stored by the BDG detector as {note_a, note_b, similarity, ...};
     # normalize to the canonical {a, b, strength} the orb uses everywhere, drop
     # malformed/self rows, sort strongest-first, and CAP to the strongest seams. The
@@ -739,8 +827,13 @@ def main():
     # Progress goes to STDERR: the brain-orb hooks run this exporter as a
     # subprocess and their own stdout must stay a single JSON document.
     _scope_label = "all (full graph)" if render_scope is None else ",".join(sorted(render_scope))
+    _overlay_line = (
+        f"  overlay: +{overlaid} fresh vault notes"
+        + (f" (capped from {overlay_missing}; run a reindex)" if overlay_missing > overlaid else "")
+    )
     _report += [
         f"  scope:   {_scope_label}",
+        _overlay_line,
         f"  nodes:   {len(out_nodes)} (of {len(raw_nodes)})",
         f"  edges:   {len(out_edges)} (of {len(raw_edges)})",
         f"  tensions:{len(out_tensions)}  incubation:{len(incubation)}  converged:{len(converged)}",

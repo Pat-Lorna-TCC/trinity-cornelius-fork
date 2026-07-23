@@ -4,14 +4,30 @@
 
 Capture insights, discover connections, and synthesize knowledge - with AI assistance.
 
+![How Cornelius works - animated architecture explainer](docs/cornelius-explainer.gif)
+
+*The whole system in one ~3-minute loop: notes become a graph → connection discovery proposes cross-domain bridges → extractors source-tier and provenance-stamp everything at the door → the domain watch fires signals → the incubation loop argues hypotheses with rotating analytical moves → conclusions stop at the one human endorsement gate → pluggable scopes mount and unmount → the BDG answers queries by spreading activation → Trinity runs it all autonomously.*
+
 > 🌱 **Ships pre-seeded.** This isn't an empty template - it comes with a working knowledge graph of **~1,000 interlinked notes** on decision-making, judgment, and cognitive science (distilled from published research and books, ~5,000 edges). Clone it and `/advise`, `/recall`, or `/find-connections` work immediately. Start at [`Brain/03-MOCs/MOC - Knowledge Base.md`](Brain/03-MOCs/MOC%20-%20Knowledge%20Base.md), then layer your own thinking on top. See [knowledge-base-analysis.md](knowledge-base-analysis.md) for what's inside.
 
-## What's New in v06.26
+## What's New in v07.26
+
+- **Animated architecture explainer** - the film at the top of this README: the full pipeline from capture to autonomous operation in ~3 minutes (`docs/cornelius-explainer.gif`)
+- **Reference scopes - a CRM layer inside the brain** - `manage-reference-data` plus seven `ref-*` skills (`ingest`, `query`, `audit`, `reconcile`, `refresh`, `supersede`, `bridge`) maintain mutable, freshness-stamped entity records - people, organizations, products, engagements, watched competitors - in separately mountable sub-scopes under `Brain/Company/`. Records carry `provenance: reference`, temporal validity, and per-type freshness SLAs; `ref-bridge` surfaces which of your insights an entity is a live instance of. A guarded boundary keeps records from ever auto-promoting into endorsed insights. Conventions: `resources/layered-brains/REFERENCE-SCOPE-SCHEMA.md` + `COMPANY-BRAIN-SCHEMA.md`
+- **Incremental indexing** - `run_index.sh` now reuses the embedding of every unchanged note (content-hash matching) and splits cold rebuilds into short resumable batches; a daily refresh takes seconds instead of a 15-20 minute full re-embed
+- **Tension detection v2** - structural-artifact filters (index/changelog noise, near-duplicates, same-source pairs), persistent dismissals that survive re-scans, and curated tensions that survive graph re-bootstrap
+- **Hardened autonomous thinking** - `incubation-loop` v1.22 and `domain-watch` v1.18 codify evidence discipline learned from months of autonomous operation: stale-wire dating, primary-source pinning, pre-registered triggers, injection-not-spawn, framework-exhaustion guards
+- **Live orb freshness** - the Brain Orb exporter overlays notes captured since the last reindex, so capture → refresh → appears holds without waiting for the nightly rebuild
+- **57 skills** for insight capture, autonomous thinking, connection discovery, reference data, research, and content creation
+
+<details>
+<summary>v06.26 changes</summary>
 
 - **Seeded public knowledge base (1,031 notes)** - The template now ships with a real, fully-indexed library instead of a few showcase notes: 1,031 decision-science notes distilled from 57 research sessions and 6 books, spanning decision-making, judgment, behavioral economics, and the cognitive science beneath good decisions
 - **11 new Maps of Content** - Topic-level navigation across decision-making, cognitive biases, risk and antifragility, neuroscience, consciousness, learning and memory, motivation, social cognition, embodied cognition, and meaning and wisdom
 - **Portable prebuilt index** - The FAISS + graph index was rebuilt over the new corpus with vault-relative paths, so semantic search, recall, and connection discovery work on any clone immediately - no indexing required before you start exploring
 - **Neutral, provenance-tagged notes** - External research distilled into atomic notes (provenance: encountered), navigated via the MOCs; only the foundation tier is published (agent-research and private tiers withheld)
+</details>
 
 <details>
 <summary>v05.26 changes</summary>
@@ -115,11 +131,18 @@ Project Cornelius is a **multi-layered knowledge management system** that create
 
 **SYNAPSE-Inspired Memory Search**
 - FAISS-powered semantic search (fast, local, no API calls)
+- Incremental indexing - only changed notes re-embed; daily refresh in seconds
 - Intent-aware query classification (factual/conceptual/synthesis/temporal)
 - Spreading activation with lateral inhibition
 - Usage-based Q-value learning - rankings improve with use
 - Graph analytics: hubs, bridges, centrality
 - Explicit (wiki-links) and semantic edge distinction
+
+**Reference Layer (CRM in the brain)**
+- Freshness-stamped entity records (clients, competitors, products, engagements) in mountable scopes
+- Temporal queries that always print data age; validity windows with kept history
+- Entity ↔ insight bridging - see which of your insights an entity is a live instance of
+- Guarded boundary: reference records never auto-promote into endorsed insights
 
 ---
 
@@ -285,6 +308,19 @@ Docs: [docs.example.com/cloud-code-plugins](https://docs.example.com/cloud-code-
 | `detect-tensions` | `/detect-tensions` | Find productive contradictions for synthesis |
 | `brain-merge` | `/brain-merge` | Compare and merge Brain directories across instances |
 
+**Reference Data (entities & CRM)**
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| `manage-reference-data` | `/manage-reference-data` | Upsert entity notes in a reference scope (base playbook) |
+| `ref-ingest` | `/ref-ingest <facts>` | Entry point for incoming entity info - resolve, reconcile, upsert |
+| `ref-query` | `/ref-query <question>` | Temporal lookup that always prints `as_of` freshness |
+| `ref-audit` | `/ref-audit` | Read-only integrity report for a reference scope |
+| `ref-reconcile` | `/ref-reconcile` | Gated integrity fixes and duplicate-entity merges |
+| `ref-refresh` | `/ref-refresh` | Staleness sweep against per-type freshness SLAs |
+| `ref-supersede` | `/ref-supersede <entity>` | Validity transitions that keep the old snapshot |
+| `ref-bridge` | `/ref-bridge <entity>` | Surface entity ↔ insight bridges into the cognitive KB |
+
 ### Sample Vault (`Brain/`)
 
 Complete Zettelkasten structure with templates:
@@ -299,6 +335,7 @@ Brain/
 │   └── Articles/          # Each article in own folder
 ├── 05-Meta/               # System notes, changelogs
 ├── AI Extracted Notes/    # AI-extracted from YOUR content
+├── Company/               # Reference scopes - entity records (created by ref-* skills)
 └── Document Insights/     # AI-extracted from external content
 ```
 
@@ -488,6 +525,7 @@ graph TB
 
 | Version | Changes |
 |---------|---------|
+| v07.26 | Reference scopes (CRM layer, 8 skills), incremental indexing, tension detection v2, animated architecture explainer, 57 skills |
 | v06.26 | Seeded public knowledge base (1,031 decision-science notes + 11 MOCs), portable rebuilt index |
 | v05.26 | Incubation loop, domain watch, insight interview, YouTube transcript, deep-research Phase 4, 45 skills |
 | v04.26 | Brain Dependency Graph, staleness propagation, lifecycle scoring, tension detection, coherence sweeps, brain merge, explanatory images, LBS daemon, 36 skills |
